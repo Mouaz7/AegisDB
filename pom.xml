@@ -4,20 +4,20 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>se.mouaz.jdistdb</groupId>
-    <artifactId>jdistdb-parent</artifactId>
+    <groupId>se.mouaz.aegisdb</groupId>
+    <artifactId>aegisdb-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>JDistDB Parent</name>
+    <name>AegisDB Parent</name>
     <description>A Fault Tolerant Distributed Transactional Database Engine in Java</description>
 
     <modules>
-        <module>jdistdb_common</module>
-        <module>jdistdb_protocol</module>
-        <module>jdistdb_transport</module>
-        <module>jdistdb_node</module>
-        <module>jdistdb_integration</module>
+        <module>aegisdb_common</module>
+        <module>aegisdb_protocol</module>
+        <module>aegisdb_transport</module>
+        <module>aegisdb_node</module>
+        <module>aegisdb_integration</module>
     </modules>
 
     <properties>
@@ -43,23 +43,23 @@
         <dependencies>
             <!-- Project Modules -->
             <dependency>
-                <groupId>se.mouaz.jdistdb</groupId>
-                <artifactId>jdistdb_common</artifactId>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>se.mouaz.jdistdb</groupId>
-                <artifactId>jdistdb_protocol</artifactId>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_protocol</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>se.mouaz.jdistdb</groupId>
-                <artifactId>jdistdb_transport</artifactId>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_transport</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>se.mouaz.jdistdb</groupId>
-                <artifactId>jdistdb_node</artifactId>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_node</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
