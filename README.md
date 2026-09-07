@@ -26,8 +26,9 @@ AegisDB/
 ├── aegisdb_common/           # Domänmodeller (NodeId, Endpoint, NodeStatus, Configs)
 ├── aegisdb_protocol/         # Protobuf-kontrakt och gRPC RPC-definitioner
 ├── aegisdb_transport/        # Transportabstraktion (InMemoryTransport, GrpcRaftTransport)
+├── aegisdb_raft/             # Raft Consensus Engine (Election, Heartbeats, State, Invariants)
 ├── aegisdb_node/             # Nodlivscykel (DatabaseNode, NodeBootstrap, NodeLifecycle)
-└── aegisdb_integration/      # Acceptanstester för 3-nods kluster & verifieringsdemo
+└── aegisdb_integration/      # Acceptanstester & verifieringsdemos för Sprint 1 och 2
 ```
 
 ---
@@ -51,24 +52,47 @@ Sprint 1 etablerar grunden för klusterkommunikation och nodhantering:
 
 ---
 
+## Sprint 2: Raft Consensus Engine - Leader Election
+
+Sprint 2 implementerar Raft konsensusmotorns ledarval (US005) med single-threaded event loop, randomiserade timeouts och strikta säkerhetsinvarianter:
+- **US005:** Som kluster vill vi utse en ledare via Raft leader election.
+
+### Uppfyllda Acceptanskriterier (Sprint 2)
+
+| Kriterium | Beskrivning | Status |
+|---|---|:---:|
+| **Exactly one leader exists per term** | Högst en ledare väljs per term (Election Safety Invariant). Val kräver absolut majoritet (quorum: `N/2 + 1`). | ✅ PASS |
+| **Followers reset timeout after valid heartbeat** | Ledaren sänder regelbundna hjärtslag (`AppendEntries`). Följare nollställer sin election timer och förblir stabila följare. | ✅ PASS |
+| **New leader is elected after failure** | När en ledare kraschar upptäcker kvarvarande noder timeout och väljer säkert en ny ledare med ökad term. | ✅ PASS |
+
+### Arkitektur & Invarianter (Sprint 2)
+- **Single-Threaded Event Loop**: Alla tillståndsförändringar körs via en sekventiell händelsekö (`Executors.newSingleThreadExecutor`) utan samtidiga race conditions (Section 107).
+- **Tidshanteringsabstraktion**: `Clock` (`SystemClock`, `TestClock`) och `Scheduler` (`SystemScheduler`, `DeterministicScheduler`) möjliggör deterministiska simuleringstester utan osäkra sleeps (Section 109 & 141).
+- **Strikt isolering**: ArchUnit-arkitekturtest verifierar att `aegisdb_raft` aldrig beror på Spring, management, benchmarks eller kaosmoduler (Section 105).
+
+---
+
 ## Bygg och Kör
 
 ### Förutsättningar
 - **Java 25 LTS**
 - **Maven 3.8+**
 
-### Kör alla enhets- och integrationstester
+### Kör alla enhets-, arkitektur- och integrationstester
 ```bash
 mvn clean test
+```
+eller via skript:
+```bash
+./scripts/test-all.sh
 ```
 
 ### Kör live-demonstration för Sprint 1
 ```bash
-mvn exec:java -pl aegisdb_integration \
-    -Dexec.mainClass=se.mouaz.aegisdb.integration.Sprint1Demo \
-    -Dexec.classpathScope=test
-```
-Eller via skript:
-```bash
 ./scripts/run-sprint1-demo.sh
+```
+
+### Kör live-demonstration för Sprint 2 (Raft Leader Election)
+```bash
+./scripts/run-sprint2-demo.sh
 ```

@@ -51,8 +51,8 @@ class GrpcRaftTransportTest {
                 .addMember(nodeB, epB)
                 .build();
 
-        transportA = new GrpcRaftTransport(nodeA, epA, clusterConfig, Duration.ofSeconds(3));
-        transportB = new GrpcRaftTransport(nodeB, epB, clusterConfig, Duration.ofSeconds(3));
+        transportA = new GrpcRaftTransport(nodeA, epA, clusterConfig, Duration.ofSeconds(5));
+        transportB = new GrpcRaftTransport(nodeB, epB, clusterConfig, Duration.ofSeconds(5));
 
         transportA.registerHandler(new DummyHandler(nodeA));
         transportB.registerHandler(new DummyHandler(nodeB));

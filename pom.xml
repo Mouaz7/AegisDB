@@ -16,6 +16,7 @@
         <module>aegisdb_common</module>
         <module>aegisdb_protocol</module>
         <module>aegisdb_transport</module>
+        <module>aegisdb_raft</module>
         <module>aegisdb_node</module>
         <module>aegisdb_integration</module>
     </modules>
@@ -37,6 +38,7 @@
         <assertj.version>3.27.2</assertj.version>
         <mockito.version>5.14.2</mockito.version>
         <awaitility.version>4.2.2</awaitility.version>
+        <archunit.version>1.3.0</archunit.version>
     </properties>
 
     <dependencyManagement>
@@ -59,8 +61,21 @@
             </dependency>
             <dependency>
                 <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_raft</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>se.mouaz.aegisdb</groupId>
                 <artifactId>aegisdb_node</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <!-- ArchUnit for Architecture Invariant Rules -->
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <!-- gRPC &amp; Protobuf -->
