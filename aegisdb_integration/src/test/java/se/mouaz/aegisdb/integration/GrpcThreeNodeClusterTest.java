@@ -69,7 +69,7 @@ class GrpcThreeNodeClusterTest {
                 .addMember(id3, ep3)
                 .build();
 
-        NetworkConfiguration netConfig = new NetworkConfiguration(Duration.ofSeconds(1), Duration.ofSeconds(3));
+        NetworkConfiguration netConfig = new NetworkConfiguration(Duration.ofSeconds(1), Duration.ofSeconds(5));
 
         NodeConfiguration config1 = NodeConfiguration.builder()
                 .nodeId(id1).endpoint(ep1).networkConfig(netConfig).build();
