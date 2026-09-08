@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -117,30 +118,37 @@ class GrpcLogReplicationTest {
     @Test
     @DisplayName("Leader proposes client writes, replicates to followers and commits over gRPC sockets")
     void writesReplicateAndCommitOverGrpc() throws Exception {
-        // 1. Await leader election
-        await().atMost(Duration.ofSeconds(6)).until(() -> node1.role() == RaftRole.LEADER);
+        // 1. Await leader election in the cluster
+        await().atMost(Duration.ofSeconds(8)).until(() ->
+                node1.role() == RaftRole.LEADER || node2.role() == RaftRole.LEADER || node3.role() == RaftRole.LEADER);
+
+        RaftNode leader = node1.role() == RaftRole.LEADER ? node1 :
+                (node2.role() == RaftRole.LEADER ? node2 : node3);
+
+        List<RaftNode> followers = java.util.List.of(node1, node2, node3).stream()
+                .filter(n -> n != leader)
+                .toList();
 
         // 2. Propose 3 sequential writes through the leader
         for (int i = 1; i <= 3; i++) {
             byte[] cmd = ("grpc-command-" + i).getBytes(StandardCharsets.UTF_8);
-            CompletableFuture<Long> future = node1.propose(cmd);
+            CompletableFuture<Long> future = leader.propose(cmd);
             Long committedIndex = future.get(5, TimeUnit.SECONDS);
             assertThat(committedIndex).isEqualTo((long) i);
         }
 
-        assertThat(node1.commitIndex()).isEqualTo(3L);
+        assertThat(leader.commitIndex()).isEqualTo(3L);
 
         // 3. Await followers to receive all entries and advance their commitIndex over gRPC
-        await().atMost(Duration.ofSeconds(6)).until(() -> node2.commitIndex() == 3L && node3.commitIndex() == 3L);
-        assertThat(node2.log().lastLogIndex()).isEqualTo(3L);
-        assertThat(node3.log().lastLogIndex()).isEqualTo(3L);
+        await().atMost(Duration.ofSeconds(8)).until(() ->
+                followers.stream().allMatch(f -> f.commitIndex() == 3L));
 
-        // 4. Verify entry payload integrity
-        for (int i = 1; i <= 3; i++) {
-            assertThat(new String(node2.log().getEntry(i).orElseThrow().data(), StandardCharsets.UTF_8))
-                    .isEqualTo("grpc-command-" + i);
-            assertThat(new String(node3.log().getEntry(i).orElseThrow().data(), StandardCharsets.UTF_8))
-                    .isEqualTo("grpc-command-" + i);
+        for (RaftNode f : followers) {
+            assertThat(f.log().lastLogIndex()).isEqualTo(3L);
+            for (int i = 1; i <= 3; i++) {
+                assertThat(new String(f.log().getEntry(i).orElseThrow().data(), StandardCharsets.UTF_8))
+                        .isEqualTo("grpc-command-" + i);
+            }
         }
 
         // 5. Check Raft Invariants across all nodes

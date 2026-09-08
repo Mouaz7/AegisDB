@@ -43,6 +43,7 @@ public class MvccStore {
     private final ConcurrentMap<Long, ActiveTx> activeTransactions = new ConcurrentHashMap<>();
     private final ConcurrentMap<Long, Long> activeSnapshots = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Long> keyWriteLocks = new ConcurrentHashMap<>();
+    private final Object commitLock = new Object();
 
     private final AtomicLong txIdGenerator = new AtomicLong(1000);
     private final AtomicLong snapshotIdGenerator = new AtomicLong(1);
@@ -132,12 +133,17 @@ public class MvccStore {
             throw new MvccException("Transaction " + txId + " is not active or already finished");
         }
 
-        long commitTimestamp = timestampProvider.nextTimestamp();
-        for (String key : tx.modifiedKeys) {
-            VersionChain chain = chains.get(key);
-            if (chain != null) {
-                chain.commitVersion(txId, commitTimestamp);
+        long commitTimestamp;
+        synchronized (commitLock) {
+            commitTimestamp = timestampProvider.nextTimestamp();
+            for (String key : tx.modifiedKeys) {
+                VersionChain chain = chains.get(key);
+                if (chain != null) {
+                    chain.commitVersion(txId, commitTimestamp);
+                }
             }
+        }
+        for (String key : tx.modifiedKeys) {
             keyWriteLocks.remove(key, txId);
         }
 
@@ -157,11 +163,15 @@ public class MvccStore {
             return false;
         }
 
-        for (String key : tx.modifiedKeys) {
-            VersionChain chain = chains.get(key);
-            if (chain != null) {
-                chain.abortVersion(txId);
+        synchronized (commitLock) {
+            for (String key : tx.modifiedKeys) {
+                VersionChain chain = chains.get(key);
+                if (chain != null) {
+                    chain.abortVersion(txId);
+                }
             }
+        }
+        for (String key : tx.modifiedKeys) {
             keyWriteLocks.remove(key, txId);
         }
 
@@ -319,16 +329,16 @@ public class MvccStore {
         // Ensure no concurrent transaction committed a modification to this key after this transaction started.
         VersionChain chain = chains.get(key);
         if (chain != null) {
-            VersionedValue head = chain.head();
-            // Skip uncommitted versions created by this transaction itself
-            while (head != null && head.createTxId() == txId && head.isUncommitted()) {
-                head = head.next();
+            VersionedValue node = chain.head();
+            // Find the most recent committed version (skipping any uncommitted or in-flight nodes)
+            while (node != null && !node.isCommitted()) {
+                node = node.next();
             }
-            if (head != null && head.isCommitted() && head.commitTimestamp() > tx.startTimestamp()) {
+            if (node != null && node.commitTimestamp() > tx.startTimestamp()) {
                 if (existingLockTx == null) {
                     keyWriteLocks.remove(key, txId);
                 }
-                throw new WriteConflictException(key, txId, head.createTxId());
+                throw new WriteConflictException(key, txId, node.createTxId());
             }
         }
     }
