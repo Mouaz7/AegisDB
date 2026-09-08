@@ -96,6 +96,31 @@ Sprint 3 implementerar Raft-loggreplikering (US006) enligt Ongaro §5.3/§5.4 me
 
 ---
 
+## Sprint 4: Persistence and Recovery
+
+Sprint 4 implementerar lokal feltolerant persistens och kraschåterställning enligt Master Project Plan §8 & §17 (US007 & US008):
+- **US007:** Som databas vill jag att committad data överlever krascher.
+- **US008:** Som Raft-nod vill jag att term/votedFor är beständig över omstarter.
+
+### Uppfyllda Acceptanskriterier (Sprint 4)
+
+| Kriterium | Beskrivning | Status |
+|---|---|:---:|
+| **WAL segments and checksums** | Segmentfiler (`wal-00000000000000000001.seg`) med automatisk rollover vid segmentgräns och CRC32-checksummor över headrar och payloads. | ✅ PASS |
+| **Flush/fsync policy** | Konfigurerbar synkroniseringspolicy (`ALWAYS`, `PERIODIC`, `MANUAL`). `ALWAYS` garanterar fysisk diskpersistens via `force(true)` innan skrivning bekräftas. | ✅ PASS |
+| **Persistent term/votedFor** | `currentTerm` och `votedFor` sparas atomärt med temp-fil + `fsync` + `ATOMIC_MOVE` före RPC-svar (§5.2). | ✅ PASS |
+| **Partial-write recovery** | Avbrutna skrivningar vid filslutet (torn tail) upptäcks automatiskt vid uppstart och trunkeras säkert till senaste intakta post. | ✅ PASS |
+| **Corruption detection** | Bit-flippar, ogiltigt magic number eller felaktig CRC32 i existerande poster flaggas omedelbart med `CorruptedWalException`. | ✅ PASS |
+| **Restart tests** | 3-nods kluster överlever abrupt processdöd/krasch. Samtliga noder återställer term, röster och loggsekvens och fortsätter konsensus. | ✅ PASS |
+
+### Arkitektur & Säkerhet (Sprint 4)
+- **DurableRaftLog**: Ersätter och utökar `RaftLog` med write-through till WAL och synkron `fsync` före minnesuppdatering.
+- **Path Traversal Protection**: Säkerhetsvalidering av datakataloger förhindrar otillåtna relativa sökvägar.
+- **Bounded Allocation Limits**: Maximal poststorlek begränsad till 16 MB för att förhindra minnesutmattningsattacker vid manipulerade headrar.
+- **Zero-Dependency Architecture**: `aegisdb_storage` har noll beroenden till Spring och gRPC.
+
+---
+
 ## Bygg och Kör
 
 ### Förutsättningar
@@ -125,3 +150,9 @@ eller via skript:
 ```bash
 ./scripts/run-sprint3-demo.sh
 ```
+
+### Kör live-demonstration för Sprint 4 (Persistens & Kraschåterställning)
+```bash
+./scripts/run-sprint4-demo.sh
+```
+

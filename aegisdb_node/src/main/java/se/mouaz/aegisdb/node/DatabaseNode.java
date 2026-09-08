@@ -10,10 +10,13 @@ import se.mouaz.aegisdb.protocol.AppendEntriesRequest;
 import se.mouaz.aegisdb.protocol.AppendEntriesResponse;
 import se.mouaz.aegisdb.protocol.RequestVoteRequest;
 import se.mouaz.aegisdb.protocol.RequestVoteResponse;
+import se.mouaz.aegisdb.raft.RaftNode;
+import se.mouaz.aegisdb.storage.StorageEngine;
 import se.mouaz.aegisdb.transport.RaftRequestHandler;
 import se.mouaz.aegisdb.transport.RaftTransport;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -21,15 +24,28 @@ public class DatabaseNode implements NodeLifecycle, RaftRequestHandler {
     private static final Logger log = LoggerFactory.getLogger(DatabaseNode.class);
 
     private final NodeContext context;
+    private final StorageEngine storageEngine;
+    private final RaftNode raftNode;
     private final AtomicReference<NodeStatus> status = new AtomicReference<>(NodeStatus.STOPPED);
 
-    public DatabaseNode(NodeContext context) {
+    public DatabaseNode(NodeContext context, StorageEngine storageEngine, RaftNode raftNode) {
         this.context = Objects.requireNonNull(context, "context cannot be null");
+        this.storageEngine = storageEngine;
+        this.raftNode = raftNode;
         context.transport().registerHandler(this);
     }
 
+    public DatabaseNode(NodeContext context) {
+        this(context, null, null);
+    }
+
     public DatabaseNode(NodeConfiguration nodeConfig, ClusterConfiguration clusterConfig, RaftTransport transport) {
-        this(new NodeContext(nodeConfig, clusterConfig, transport));
+        this(new NodeContext(nodeConfig, clusterConfig, transport), null, null);
+    }
+
+    public DatabaseNode(NodeConfiguration nodeConfig, ClusterConfiguration clusterConfig, RaftTransport transport,
+                        StorageEngine storageEngine, RaftNode raftNode) {
+        this(new NodeContext(nodeConfig, clusterConfig, transport), storageEngine, raftNode);
     }
 
     public NodeId nodeId() {
@@ -48,6 +64,14 @@ public class DatabaseNode implements NodeLifecycle, RaftRequestHandler {
         return context.transport();
     }
 
+    public Optional<StorageEngine> storageEngine() {
+        return Optional.ofNullable(storageEngine);
+    }
+
+    public Optional<RaftNode> raftNode() {
+        return Optional.ofNullable(raftNode);
+    }
+
     @Override
     public NodeStatus status() {
         return status.get();
@@ -63,6 +87,9 @@ public class DatabaseNode implements NodeLifecycle, RaftRequestHandler {
         log.info("Starting node {}", nodeId());
         try {
             context.transport().start();
+            if (raftNode != null) {
+                raftNode.start();
+            }
             status.set(NodeStatus.RUNNING);
             log.info("Node {} is now RUNNING", nodeId());
         } catch (Exception e) {
@@ -82,7 +109,17 @@ public class DatabaseNode implements NodeLifecycle, RaftRequestHandler {
         status.set(NodeStatus.STOPPING);
         log.info("Stopping node {}", nodeId());
         try {
+            if (raftNode != null) {
+                raftNode.stop();
+            }
             context.transport().stop();
+            if (storageEngine != null) {
+                try {
+                    storageEngine.close();
+                } catch (Exception e) {
+                    log.error("Failed to close StorageEngine for node {}", nodeId(), e);
+                }
+            }
         } finally {
             status.set(NodeStatus.STOPPED);
             log.info("Node {} is now STOPPED", nodeId());
@@ -99,12 +136,18 @@ public class DatabaseNode implements NodeLifecycle, RaftRequestHandler {
 
     @Override
     public CompletableFuture<RequestVoteResponse> handleRequestVote(RequestVoteRequest request) {
+        if (raftNode != null) {
+            return raftNode.handleRequestVote(request);
+        }
         log.debug("Node {} received RequestVote from {}", nodeId(), request.candidateId());
         return CompletableFuture.completedFuture(RequestVoteResponse.granted(request.term()));
     }
 
     @Override
     public CompletableFuture<AppendEntriesResponse> handleAppendEntries(AppendEntriesRequest request) {
+        if (raftNode != null) {
+            return raftNode.handleAppendEntries(request);
+        }
         log.debug("Node {} received AppendEntries from leader {}", nodeId(), request.leaderId());
         return CompletableFuture.completedFuture(AppendEntriesResponse.success(request.term(), 1));
     }

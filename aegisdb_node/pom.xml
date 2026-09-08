@@ -29,6 +29,14 @@
             <artifactId>aegisdb_transport</artifactId>
         </dependency>
         <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb_raft</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb_storage</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
