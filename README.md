@@ -145,6 +145,29 @@ Sprint 5 implements log compaction via snapshots, chunked `InstallSnapshot` RPC,
 
 ---
 
+## Sprint 6: Multi-Version Concurrency Control (MVCC) and Snapshot Isolation
+
+Sprint 6 implements lock-free multi-version storage, point-in-time snapshot isolation, strict visibility rules, and watermarked garbage collection per Master Project Plan §9 & §17 (US011):
+- **US011:** As a transaction, I want to read a stable snapshot while other writes occur.
+
+### Completed Acceptance Criteria (Sprint 6)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **Version chains** | Singly-linked list per key with atomic CAS head updates (`VersionChain`, `VersionedValue`). Readers traverse without locks. | ✅ PASS |
+| **Snapshot timestamps** | Monotonically increasing logical timestamps (`TimestampProvider`) creating immutable point-in-time snapshots (`Snapshot`). | ✅ PASS |
+| **Visibility rules** | Pure visibility engine (`VisibilityRule`) enforcing future invisibility, dirty read prevention, and committed visibility. | ✅ PASS |
+| **Uncommitted/aborted invisibility** | Readers never see uncommitted or aborted writes. Active transactions support Read-Your-Own-Writes and First-Committer-Wins conflict detection. | ✅ PASS |
+| **Garbage collection safety** | Watermarked garbage collection (`MvccGarbageCollector`) guarantees active snapshot views are never deleted. Tombstones and obsolete versions safely reclaimed. | ✅ PASS |
+
+### Architecture & Concurrency Guarantees (Sprint 6)
+- **Lock-Free Reads**: Readers never block writers, and writers never block readers.
+- **Pure Snapshot Isolation**: Complete immunity against Dirty Reads, Lost Updates, and Non-Repeatable Reads.
+- **Raft Snapshot Integration**: Framed binary snapshot serialization (`0x4D564343` magic header with CRC32) for cluster log compaction.
+- **Zero-Dependency Core**: `aegisdb_mvcc` module maintains zero dependencies on Spring, gRPC, or management frameworks.
+
+---
+
 ## Build and Run
 
 ### Prerequisites
@@ -184,3 +207,9 @@ or via script:
 ```bash
 ./scripts/run-sprint5-demo.sh
 ```
+
+### Run Live Demonstration for Sprint 6 (MVCC & Snapshot Isolation)
+```bash
+./scripts/run-sprint6-demo.sh
+```
+

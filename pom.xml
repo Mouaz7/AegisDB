@@ -18,6 +18,7 @@
         <module>aegisdb_transport</module>
         <module>aegisdb_raft</module>
         <module>aegisdb_storage</module>
+        <module>aegisdb_mvcc</module>
         <module>aegisdb_node</module>
         <module>aegisdb_client</module>
         <module>aegisdb_integration</module>
@@ -79,6 +80,11 @@
             <dependency>
                 <groupId>se.mouaz.aegisdb</groupId>
                 <artifactId>aegisdb_client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_mvcc</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
