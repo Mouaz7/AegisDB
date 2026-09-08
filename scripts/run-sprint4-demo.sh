@@ -2,7 +2,7 @@
 set -e
 
 echo "=============================================="
-echo "  AegisDB: Kör Sprint 4 Live Demonstration"
+echo "  AegisDB: Run Sprint 4 Live Demonstration"
 echo "  Persistence and Recovery (US007 & US008)"
 echo "=============================================="
 

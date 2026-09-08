@@ -35,7 +35,7 @@ public class Sprint3Demo {
 
     public static void main(String[] args) {
         System.out.println("===============================================================");
-        System.out.println("     AegisDB - Sprint 3 Demonstration & Verifiering ");
+        System.out.println("     AegisDB - Sprint 3 Demonstration & Verification ");
         System.out.println("     Consensus Engine: Raft Log Replication (US006)");
         System.out.println("===============================================================\n");
 
@@ -91,37 +91,37 @@ public class Sprint3Demo {
 
         try {
             // 1. Start cluster and elect leader
-            System.out.println("▶ [1/5] Startar 3-nods kluster och inväntar stabil ledare...");
+            System.out.println("▶ [1/5] Starting 3-node cluster and awaiting stable leader...");
             node1.start();
             node2.start();
             node3.start();
 
             await().atMost(Duration.ofSeconds(3)).until(() -> node1.role() == RaftRole.LEADER);
-            System.out.println("   ✔ Ledare etablerad: " + node1.nodeId() + " [Term: " + node1.currentTerm() + "]");
-            System.out.println("   ✔ Följare synkroniserade: " + node2.nodeId() + ", " + node3.nodeId() + "\n");
+            System.out.println("   ✔ Leader established: " + node1.nodeId() + " [Term: " + node1.currentTerm() + "]");
+            System.out.println("   ✔ Followers synchronized: " + node2.nodeId() + ", " + node3.nodeId() + "\n");
 
             // 2. Acceptance Criterion 1 & 3: Writes replicate & CommitIndex advances correctly
-            System.out.println("▶ [2/5] [AC1 & AC3] Verifierar 'Writes replicate' & 'CommitIndex advances correctly'...");
+            System.out.println("▶ [2/5] [AC1 & AC3] Verifying 'Writes replicate' & 'CommitIndex advances correctly'...");
             byte[] cmd1 = "SET account:101 5000".getBytes(StandardCharsets.UTF_8);
             byte[] cmd2 = "SET account:102 3000".getBytes(StandardCharsets.UTF_8);
 
             CompletableFuture<Long> fut1 = node1.propose(cmd1);
             Long idx1 = fut1.get(3, TimeUnit.SECONDS);
-            System.out.println("   ✔ Första skrivningen committad på index: " + idx1);
+            System.out.println("   ✔ First write committed at index: " + idx1);
 
             CompletableFuture<Long> fut2 = node1.propose(cmd2);
             Long idx2 = fut2.get(3, TimeUnit.SECONDS);
-            System.out.println("   ✔ Andra skrivningen committad på index: " + idx2);
+            System.out.println("   ✔ Second write committed at index: " + idx2);
 
             await().atMost(Duration.ofSeconds(3)).until(() -> node2.commitIndex() == 2L && node3.commitIndex() == 2L);
-            System.out.println("   ✔ Båda följarna kvitterade och flyttade fram commitIndex till 2.");
+            System.out.println("   ✔ Both followers acknowledged and advanced commitIndex to 2.");
             RaftInvariants.assertIdenticalOrderOfCommittedEntries(node1.log(), node2.log(), 2L);
             RaftInvariants.assertIdenticalOrderOfCommittedEntries(node1.log(), node3.log(), 2L);
-            System.out.println("   ✔ Invariant verifierad: Alla noder har identisk loggsekvens.\n");
+            System.out.println("   ✔ Invariant verified: All nodes share identical committed log sequence.\n");
 
             // 3. Acceptance Criterion 2: Majority required
-            System.out.println("▶ [3/5] [AC2] Verifierar 'Majority required'...");
-            System.out.println("   Simulerar nätverkspartition: Kopplar bort båda följarna (node-2, node-3)...");
+            System.out.println("▶ [3/5] [AC2] Verifying 'Majority required'...");
+            System.out.println("   Simulating network partition: Disconnecting both followers (node-2, node-3)...");
             transport2.stop();
             transport3.stop();
 
@@ -129,35 +129,35 @@ public class Sprint3Demo {
             await().atMost(Duration.ofSeconds(2)).until(() -> node1.log().lastLogIndex() == 3L);
 
             if (!uncommittedFut.isDone() && node1.commitIndex() == 2L) {
-                System.out.println("   ✔ Skrivning blockeras korrekt: Endast ledaren själv (1/3 noder) har posten.");
+                System.out.println("   ✔ Write safely blocked from commit: Only leader alone (1/3 nodes) holds entry.");
             } else {
-                throw new IllegalStateException("Misslyckades: Skrivning tilläts utan majoritet!");
+                throw new IllegalStateException("Failed: Write was allowed to commit without majority quorum!");
             }
 
-            System.out.println("   Återansluter node-2 (återställer majoritet 2/3)...");
+            System.out.println("   Reconnecting node-2 (restoring 2/3 majority)...");
             transport2.start();
             node1.replicationManager().replicateTo(id2);
             Long idx3 = uncommittedFut.get(3, TimeUnit.SECONDS);
-            System.out.println("   ✔ Skrivningen slutfördes omedelbart när majoritet återställdes! CommitIndex: " + idx3 + "\n");
+            System.out.println("   ✔ Write committed immediately once quorum was restored! CommitIndex: " + idx3 + "\n");
 
             // 4. Acceptance Criterion 4: Follower catches up
-            System.out.println("▶ [4/5] [AC4] Verifierar 'Follower catches up'...");
-            System.out.println("   Node-3 är fortfarande offline. Ledaren committar fler transaktioner...");
+            System.out.println("▶ [4/5] [AC4] Verifying 'Follower catches up'...");
+            System.out.println("   Node-3 remains offline while leader commits additional entries...");
             for (int i = 4; i <= 6; i++) {
                 node1.propose(("TX-BATCH-" + i).getBytes(StandardCharsets.UTF_8)).get(3, TimeUnit.SECONDS);
             }
-            System.out.println("   ✔ Ledare och Node-2 är på commitIndex 6. Node-3 är kvar på commitIndex 2.");
+            System.out.println("   ✔ Leader and Node-2 are at commitIndex 6. Node-3 remains at commitIndex 2.");
 
-            System.out.println("   Återansluter eftersläpande Node-3...");
+            System.out.println("   Reconnecting lagging Node-3...");
             transport3.start();
             node1.replicationManager().replicateTo(id3);
 
             await().atMost(Duration.ofSeconds(4)).until(() -> node3.commitIndex() == 6L);
-            System.out.println("   ✔ Node-3 hämtade ikapp alla saknade poster och nådde commitIndex: " + node3.commitIndex());
+            System.out.println("   ✔ Node-3 caught up on all missing entries and reached commitIndex: " + node3.commitIndex());
             RaftInvariants.assertIdenticalOrderOfCommittedEntries(node1.log(), node3.log(), 6L);
-            System.out.println("   ✔ Loggarna är fullständigt synkroniserade.\n");
+            System.out.println("   ✔ Logs are completely synchronized.\n");
 
-            // Stäng cluster 1 för att köra ren AC5 demonstration
+            // Close cluster 1 for clean AC5 demonstration
             node1.stop();
             node2.stop();
             node3.stop();
@@ -167,8 +167,8 @@ public class Sprint3Demo {
             InMemoryTransport.clearRegistry();
 
             // 5. Acceptance Criterion 5: Conflicting entries are repaired
-            System.out.println("▶ [5/5] [AC5] Verifierar 'Conflicting entries are repaired'...");
-            System.out.println("   Skapar scenario med divergerande uncommitted poster i en följare...");
+            System.out.println("▶ [5/5] [AC5] Verifying 'Conflicting entries are repaired'...");
+            System.out.println("   Creating scenario with diverging uncommitted entries in follower log...");
 
             NodeId repLeaderId = NodeId.of("repair-leader");
             NodeId repFollowerId = NodeId.of("repair-divergent");
@@ -216,9 +216,9 @@ public class Sprint3Demo {
             divergentNode.start();
             repairLeader.start();
 
-            System.out.println("   Divergent nod har felaktig post på index 2: '"
+            System.out.println("   Divergent node has conflicting entry at index 2: '"
                     + new String(conflictLog.getEntry(2).get().data(), StandardCharsets.UTF_8) + "' (Term 1)");
-            System.out.println("   Ledaren i term 2 har auktoritativ post på index 2: '"
+            System.out.println("   Leader in Term 2 has authoritative entry at index 2: '"
                     + new String(leaderLog.getEntry(2).get().data(), StandardCharsets.UTF_8) + "' (Term 2)");
 
             await().atMost(Duration.ofSeconds(3)).until(() -> repairLeader.role() == RaftRole.LEADER);
@@ -230,10 +230,10 @@ public class Sprint3Demo {
                     divergentNode.log().getEntry(2).get().term() == 2L
             );
 
-            System.out.println("   ✔ Konflikten reparerades! Följarens logg trunkerades och ersattes med ledarens auktoritativa poster:");
+            System.out.println("   ✔ Conflict repaired! Follower log truncated and overwritten with leader authoritative entries:");
             System.out.println("     Index 2: '" + new String(divergentNode.log().getEntry(2).get().data(), StandardCharsets.UTF_8) + "' (Term 2)");
             System.out.println("     Index 3: '" + new String(divergentNode.log().getEntry(3).get().data(), StandardCharsets.UTF_8) + "' (Term 2)");
-            System.out.println("   ✔ Invariant verifierad: Alla divergerande poster har eliminerats och ersatts.\n");
+            System.out.println("   ✔ Invariant verified: All divergent entries eliminated and replaced.\n");
 
             divergentNode.stop();
             repairLeader.stop();
@@ -242,7 +242,7 @@ public class Sprint3Demo {
             InMemoryTransport.clearRegistry();
 
             System.out.println("===============================================================");
-            System.out.println("     ALLA 5 ACCEPTANSKRITERIER FÖR SPRINT 3 VERIFIERADE!");
+            System.out.println("     ALL 5 SPRINT 3 ACCEPTANCE CRITERIA VERIFIED!             ");
             System.out.println("     [AC1] Writes replicate:                 PASSED");
             System.out.println("     [AC2] Majority required:                PASSED");
             System.out.println("     [AC3] CommitIndex advances correctly:   PASSED");
@@ -251,7 +251,7 @@ public class Sprint3Demo {
             System.out.println("===============================================================");
 
         } catch (Exception e) {
-            log.error("Sprint 3 Demo misslyckades", e);
+            log.error("Sprint 3 Demo failed", e);
             System.err.println("DEMO FAILED: " + e.getMessage());
             System.exit(1);
         } finally {

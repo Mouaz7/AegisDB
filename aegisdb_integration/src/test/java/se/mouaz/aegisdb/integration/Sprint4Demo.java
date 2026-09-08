@@ -45,7 +45,7 @@ public class Sprint4Demo {
 
     public static void main(String[] args) {
         System.out.println("===============================================================");
-        System.out.println("     AegisDB - Sprint 4 Demonstration & Verifiering ");
+        System.out.println("     AegisDB - Sprint 4 Demonstration & Verification ");
         System.out.println("     Storage Engine: Persistence & Recovery (US007, US008)");
         System.out.println("===============================================================\n");
 
@@ -54,7 +54,7 @@ public class Sprint4Demo {
             demoRoot = Files.createTempDirectory("aegisdb-sprint4-demo");
 
             // --- AC1: WAL segments and checksums ---
-            System.out.println("▶ [1/6] [AC1] Verifierar 'WAL segments and checksums'...");
+            System.out.println("▶ [1/6] [AC1] Verifying 'WAL segments and checksums'...");
             Path walDir = demoRoot.resolve("ac1-wal");
             WalConfig walConfig = WalConfig.builder()
                     .walDir(walDir)
@@ -73,25 +73,25 @@ public class Sprint4Demo {
                 }
 
                 List<WalSegment> segments = walManager.listSegments();
-                System.out.println("   ✔ Skapade " + segments.size() + " WAL-segment med automatisk rollover vid gräns (300B):");
+                System.out.println("   ✔ Created " + segments.size() + " WAL segments with automatic rollover at threshold (300B):");
                 for (WalSegment s : segments) {
                     System.out.println("     - " + s.path().getFileName() + " (" + s.size() + " bytes)");
                 }
 
                 WalReader reader = new WalReader(walManager);
                 List<StorageRecord> records = reader.readAllRecords();
-                System.out.println("   ✔ Läste " + records.size() + " poster sekventiellt över segmenten.");
+                System.out.println("   ✔ Read " + records.size() + " records sequentially across all segments.");
                 for (StorageRecord r : records) {
-                    System.out.println("     Post #" + r.sequenceNumber() + " | Magic: 0x" + Integer.toHexString(r.magicNumber())
-                            + " | CRC32: 0x" + Long.toHexString(r.checksum()) + " [GILTIG]");
+                    System.out.println("     Record #" + r.sequenceNumber() + " | Magic: 0x" + Integer.toHexString(r.magicNumber())
+                            + " | CRC32: 0x" + Long.toHexString(r.checksum()) + " [VALID]");
                 }
             }
             System.out.println("   ✔ [AC1] WAL segments and checksums: PASSED\n");
 
             // --- AC2: Flush/fsync policy ---
-            System.out.println("▶ [2/6] [AC2] Verifierar 'Flush/fsync policy'...");
-            System.out.println("   Stödjer FsyncPolicy.ALWAYS (FileChannel.force(true) på varje skrivning),");
-            System.out.println("   FsyncPolicy.PERIODIC samt FsyncPolicy.MANUAL.");
+            System.out.println("▶ [2/6] [AC2] Verifying 'Flush/fsync policy'...");
+            System.out.println("   Supports FsyncPolicy.ALWAYS (FileChannel.force(true) on each append),");
+            System.out.println("   FsyncPolicy.PERIODIC and FsyncPolicy.MANUAL.");
             Path fsyncDir = demoRoot.resolve("ac2-fsync");
             WalConfig fsyncConfig = WalConfig.builder()
                     .walDir(fsyncDir)
@@ -100,30 +100,30 @@ public class Sprint4Demo {
             try (WalManager wm = new WalManager(fsyncConfig)) {
                 wm.append(StorageRecord.createEntry(1L, 1L, System.currentTimeMillis(), "data".getBytes(StandardCharsets.UTF_8)));
                 wm.sync();
-                System.out.println("   ✔ Synkroniserade segment med fsync force(true) till disk.");
+                System.out.println("   ✔ Synchronized segment with fsync force(true) to persistent disk.");
             }
             System.out.println("   ✔ [AC2] Flush/fsync policy: PASSED\n");
 
             // --- AC3: Persistent term/votedFor ---
-            System.out.println("▶ [3/6] [AC3] Verifierar 'Persistent term/votedFor' (US008)...");
+            System.out.println("▶ [3/6] [AC3] Verifying 'Persistent term/votedFor' (US008)...");
             Path metaDir = demoRoot.resolve("ac3-meta");
             FileRaftMetadataStorage metaStorage = new FileRaftMetadataStorage(metaDir);
 
-            System.out.println("   Sparar initialt tillstånd: Term=1, VotedFor=node-leader");
+            System.out.println("   Saving initial state: Term=1, VotedFor=node-leader");
             metaStorage.save(1L, NodeId.of("node-leader"));
 
-            System.out.println("   Uppdaterar atomärt till ny term via write-to-temp + fsync + ATOMIC_MOVE: Term=2, VotedFor=node-candidate");
+            System.out.println("   Updating atomically to new term via write-to-temp + fsync + ATOMIC_MOVE: Term=2, VotedFor=node-candidate");
             metaStorage.save(2L, NodeId.of("node-candidate"));
 
             var loadedMeta = metaStorage.load().orElseThrow();
-            System.out.println("   ✔ Återläst konsensusmetadata från disk: Term=" + loadedMeta.currentTerm() + ", VotedFor=" + loadedMeta.votedFor());
+            System.out.println("   ✔ Recovered consensus metadata from disk: Term=" + loadedMeta.currentTerm() + ", VotedFor=" + loadedMeta.votedFor());
             if (loadedMeta.currentTerm() != 2L || !loadedMeta.votedFor().value().equals("node-candidate")) {
-                throw new IllegalStateException("Metadata matchade inte sparat tillstånd!");
+                throw new IllegalStateException("Metadata did not match saved state!");
             }
             System.out.println("   ✔ [AC3] Persistent term/votedFor: PASSED\n");
 
             // --- AC4: Partial-write recovery ---
-            System.out.println("▶ [4/6] [AC4] Verifierar 'Partial-write recovery' (Torn Tail vid krasch)...");
+            System.out.println("▶ [4/6] [AC4] Verifying 'Partial-write recovery' (Torn Tail at crash)...");
             Path tornDir = demoRoot.resolve("ac4-torn");
             WalConfig tornConfig = WalConfig.of(tornDir);
 
@@ -132,9 +132,8 @@ public class Sprint4Demo {
                 wm.append(StorageRecord.createEntry(2L, 1L, System.currentTimeMillis(), "entry-2".getBytes(StandardCharsets.UTF_8)));
             }
 
-            // Injicera en avbruten skrivning (halv post i slutet av filen)
+            // Inject an incomplete write (half record at EOF)
             WalSegment seg = WalSegment.openOrCreate(tornDir, 1L);
-            long validLength = seg.size();
 
             StorageRecord unwritten = StorageRecord.createEntry(3L, 1L, System.currentTimeMillis(), "torn-incomplete-bytes".getBytes(StandardCharsets.UTF_8));
             byte[] rawBytes = unwritten.serialize().array();
@@ -145,22 +144,22 @@ public class Sprint4Demo {
                 fc.write(ByteBuffer.wrap(halfBytes));
                 fc.force(true);
             }
-            System.out.println("   Simulerade plötslig strömavbrott/processkill mitt i post #3 (" + halfBytes.length + " avbrutna bytes skrivna)");
+            System.out.println("   Simulated abrupt power cut/kill mid-record #3 (" + halfBytes.length + " torn bytes written)");
 
             try (WalManager wm = new WalManager(tornConfig)) {
                 WalRecoveryManager recMgr = new WalRecoveryManager(wm);
                 WalRecoveryManager.WalScanResult scanRes = recMgr.scanAndRecover();
 
-                System.out.println("   ✔ Återställningshanteraren upptäckte torn tail och trunkerade säkert " + scanRes.tornTailsRepairedCount() + " avbruten svans.");
-                System.out.println("   ✔ Alla " + scanRes.records().size() + " tidigare committade poster återställdes intakta!");
+                System.out.println("   ✔ Recovery manager detected torn tail and safely truncated " + scanRes.tornTailsRepairedCount() + " incomplete record tail.");
+                System.out.println("   ✔ All " + scanRes.records().size() + " previously committed records restored intact!");
                 if (scanRes.records().size() != 2) {
-                    throw new IllegalStateException("Misslyckades att återställa giltiga poster före torn tail!");
+                    throw new IllegalStateException("Failed to recover valid records prior to torn tail!");
                 }
             }
             System.out.println("   ✔ [AC4] Partial-write recovery: PASSED\n");
 
             // --- AC5: Corruption detection ---
-            System.out.println("▶ [5/6] [AC5] Verifierar 'Corruption detection' (CRC32 & Magic fel)...");
+            System.out.println("▶ [5/6] [AC5] Verifying 'Corruption detection' (CRC32 & Magic mismatch)...");
             Path corruptDir = demoRoot.resolve("ac5-corrupt");
             WalConfig corruptConfig = WalConfig.of(corruptDir);
 
@@ -168,7 +167,7 @@ public class Sprint4Demo {
                 wm.append(StorageRecord.createEntry(1L, 1L, System.currentTimeMillis(), "safe-payload".getBytes(StandardCharsets.UTF_8)));
             }
 
-            // Manipulera en bit i posten (korruption på disk)
+            // Corrupt a byte in the payload on disk
             WalSegment corruptSeg = WalSegment.openOrCreate(corruptDir, 1L);
             byte[] cBytes = Files.readAllBytes(corruptSeg.path());
             cBytes[StorageRecord.FRAMING_HEADER_SIZE + 5] ^= 0x7F;
@@ -178,15 +177,15 @@ public class Sprint4Demo {
                 WalRecoveryManager recMgr = new WalRecoveryManager(wm);
                 try {
                     recMgr.scanAndRecover();
-                    throw new IllegalStateException("Korruption upptäcktes inte!");
+                    throw new IllegalStateException("Corruption was not detected!");
                 } catch (CorruptedWalException ex) {
-                    System.out.println("   ✔ Korruption fångades framgångsrikt: " + ex.getMessage());
+                    System.out.println("   ✔ Corruption caught successfully: " + ex.getMessage());
                 }
             }
             System.out.println("   ✔ [AC5] Corruption detection: PASSED\n");
 
             // --- AC6: Restart tests ---
-            System.out.println("▶ [6/6] [AC6] Verifierar 'Restart tests' (3-nods kluster överlever krasch & omstart)...");
+            System.out.println("▶ [6/6] [AC6] Verifying 'Restart tests' (3-node cluster survives crash & restart)...");
             RaftInvariants.clearInvariantTracking();
             InMemoryTransport.clearRegistry();
 
@@ -240,22 +239,22 @@ public class Sprint4Demo {
             node3.start();
 
             await().atMost(Duration.ofSeconds(3)).until(() -> node1.role() == RaftRole.LEADER);
-            System.out.println("   ✔ Ledare vald: " + node1.nodeId() + " i Term " + node1.currentTerm());
+            System.out.println("   ✔ Leader elected: " + node1.nodeId() + " in Term " + node1.currentTerm());
 
             node1.propose("TX-101-TRANSFER 500".getBytes(StandardCharsets.UTF_8)).get(3, TimeUnit.SECONDS);
             node1.propose("TX-102-TRANSFER 300".getBytes(StandardCharsets.UTF_8)).get(3, TimeUnit.SECONDS);
             await().atMost(Duration.ofSeconds(3)).until(() -> node2.commitIndex() == 2L && node3.commitIndex() == 2L);
-            System.out.println("   ✔ Replikering och persistent commit utförd för transaktioner 1 och 2.");
+            System.out.println("   ✔ Replication and persistent commit confirmed for transactions 1 and 2.");
 
-            // Krascha hela klustret!
-            System.out.println("   Kraschar hela klustret abrupt (stoppar processer)...");
+            // Crash the entire cluster!
+            System.out.println("   Abruptly crashing all cluster nodes (stopping processes)...");
             node1.stop(); node2.stop(); node3.stop();
             t1.stop(); t2.stop(); t3.stop();
             s1.close(); s2.close(); s3.close();
             InMemoryTransport.clearRegistry();
 
-            // Starta om klustret från disk!
-            System.out.println("   Startar om samtliga noder från disklagring...");
+            // Restart cluster from disk!
+            System.out.println("   Restarting all nodes from persistent disk storage...");
             StorageEngine rs1 = new StorageEngine(n1Dir);
             StorageEngine rs2 = new StorageEngine(n2Dir);
             StorageEngine rs3 = new StorageEngine(n3Dir);
@@ -264,9 +263,9 @@ public class Sprint4Demo {
             StorageEngine.DurableRecovery rRec2 = rs2.recoverAndCreateLog();
             StorageEngine.DurableRecovery rRec3 = rs3.recoverAndCreateLog();
 
-            System.out.println("   ✔ Nod 1 återställd: Term=" + rRec1.result().recoveredTerm() + ", Senaste LogIndex=" + rRec1.result().lastLogIndex());
-            System.out.println("   ✔ Nod 2 återställd: Term=" + rRec2.result().recoveredTerm() + ", Senaste LogIndex=" + rRec2.result().lastLogIndex());
-            System.out.println("   ✔ Nod 3 återställd: Term=" + rRec3.result().recoveredTerm() + ", Senaste LogIndex=" + rRec3.result().lastLogIndex());
+            System.out.println("   ✔ Node 1 recovered: Term=" + rRec1.result().recoveredTerm() + ", LastLogIndex=" + rRec1.result().lastLogIndex());
+            System.out.println("   ✔ Node 2 recovered: Term=" + rRec2.result().recoveredTerm() + ", LastLogIndex=" + rRec2.result().lastLogIndex());
+            System.out.println("   ✔ Node 3 recovered: Term=" + rRec3.result().recoveredTerm() + ", LastLogIndex=" + rRec3.result().lastLogIndex());
 
             InMemoryTransport rt1 = new InMemoryTransport(n1);
             InMemoryTransport rt2 = new InMemoryTransport(n2);
@@ -292,15 +291,15 @@ public class Sprint4Demo {
             rNode1.start(); rNode2.start(); rNode3.start();
 
             await().atMost(Duration.ofSeconds(3)).until(() -> rNode1.role() == RaftRole.LEADER);
-            System.out.println("   ✔ Klustret återupptog konsensus efter omstart! Ledare: " + rNode1.nodeId());
+            System.out.println("   ✔ Cluster resumed consensus after restart! Leader: " + rNode1.nodeId());
 
             CompletableFuture<Long> fut3 = rNode1.propose("TX-103-AFTER-RESTART 900".getBytes(StandardCharsets.UTF_8));
             Long idx3 = fut3.get(3, TimeUnit.SECONDS);
-            System.out.println("   ✔ Ny skrivning framgångsrikt committad efter omstart på index: " + idx3);
+            System.out.println("   ✔ New write committed successfully after restart at index: " + idx3);
 
             RaftInvariants.assertIdenticalOrderOfCommittedEntries(rNode1.log(), rNode2.log(), 3L);
             RaftInvariants.assertIdenticalOrderOfCommittedEntries(rNode1.log(), rNode3.log(), 3L);
-            System.out.println("   ✔ Invariant verifierad: Alla noder har identisk loggsekvens över krasch och omstart.");
+            System.out.println("   ✔ Invariant verified: All nodes share identical log sequence across crash and restart.");
 
             rNode1.stop(); rNode2.stop(); rNode3.stop();
             rt1.stop(); rt2.stop(); rt3.stop();
@@ -309,7 +308,7 @@ public class Sprint4Demo {
             System.out.println("   ✔ [AC6] Restart tests: PASSED\n");
 
             System.out.println("===============================================================");
-            System.out.println("     ALLA 6 ACCEPTANSKRITERIER FÖR SPRINT 4 VERIFIERADE!");
+            System.out.println("     ALL 6 SPRINT 4 ACCEPTANCE CRITERIA VERIFIED!             ");
             System.out.println("     [AC1] WAL segments and checksums:   PASSED");
             System.out.println("     [AC2] Flush/fsync policy:           PASSED");
             System.out.println("     [AC3] Persistent term/votedFor:     PASSED");
@@ -320,7 +319,7 @@ public class Sprint4Demo {
 
             System.exit(0);
         } catch (Exception e) {
-            log.error("Sprint 4 Demo misslyckades", e);
+            log.error("Sprint 4 Demo failed", e);
             System.err.println("DEMO FAILED: " + e.getMessage());
             e.printStackTrace();
             System.exit(1);

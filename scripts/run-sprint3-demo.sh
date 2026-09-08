@@ -2,7 +2,7 @@
 set -e
 
 echo "=============================================="
-echo "  AegisDB: Kör Sprint 3 Live Demonstration"
+echo "  AegisDB: Run Sprint 3 Live Demonstration"
 echo "  Raft Log Replication (US006)"
 echo "=============================================="
 

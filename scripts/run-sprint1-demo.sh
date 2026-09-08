@@ -2,7 +2,7 @@
 set -e
 
 echo "=============================================="
-echo "  AegisDB: Kör Sprint 1 Live Demonstration"
+echo "  AegisDB: Run Sprint 1 Live Demonstration"
 echo "=============================================="
 
 mvn test-compile exec:java \

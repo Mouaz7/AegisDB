@@ -2,7 +2,7 @@
 set -e
 
 echo "=============================================="
-echo "  AegisDB: Kör alla enhets- och integrationstester"
+echo "  AegisDB: Run all unit and integration tests"
 echo "=============================================="
 
 mvn clean test

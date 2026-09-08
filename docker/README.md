@@ -1,3 +1,3 @@
-# Docker Konfigurationer för AegisDB
+# Docker Configurations for AegisDB
 
-Denna katalog innehåller Dockerfile och Docker Compose för nodkluster, Prometheus och Grafana.
+This directory contains Dockerfile and Docker Compose configurations for running node clusters, Prometheus, and Grafana.

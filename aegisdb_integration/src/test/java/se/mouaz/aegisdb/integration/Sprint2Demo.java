@@ -28,7 +28,7 @@ public class Sprint2Demo {
 
     public static void main(String[] args) {
         System.out.println("===============================================================");
-        System.out.println("     AegisDB - Sprint 2 Demonstration & Verifiering ");
+        System.out.println("     AegisDB - Sprint 2 Demonstration & Verification ");
         System.out.println("     Consensus Engine: Raft Leader Election (US005)");
         System.out.println("===============================================================\n");
 
@@ -85,17 +85,17 @@ public class Sprint2Demo {
 
         try {
             // 1. Start cluster
-            System.out.println("▶ [1/4] Startar 3 Raft-konsensusnoder med Single-Threaded Event Loop...");
+            System.out.println("▶ [1/4] Starting 3 Raft consensus nodes with Single-Threaded Event Loop...");
             node1.start();
             node2.start();
             node3.start();
 
-            System.out.println("   ✔ Node 1 startad [Roll: " + node1.role() + ", Term: " + node1.currentTerm() + "]");
-            System.out.println("   ✔ Node 2 startad [Roll: " + node2.role() + ", Term: " + node2.currentTerm() + "]");
-            System.out.println("   ✔ Node 3 startad [Roll: " + node3.role() + ", Term: " + node3.currentTerm() + "]\n");
+            System.out.println("   ✔ Node 1 started [Role: " + node1.role() + ", Term: " + node1.currentTerm() + "]");
+            System.out.println("   ✔ Node 2 started [Role: " + node2.role() + ", Term: " + node2.currentTerm() + "]");
+            System.out.println("   ✔ Node 3 started [Role: " + node3.role() + ", Term: " + node3.currentTerm() + "]\n");
 
             // 2. Acceptance Criterion 1: Exactly one leader per term
-            System.out.println("▶ [2/4] [AC1] Verifierar ledarval: Exakt EN ledare väljs för term 1...");
+            System.out.println("▶ [2/4] [AC1] Verifying leader election: Exactly ONE leader elected for Term 1...");
             await().atMost(Duration.ofSeconds(2)).until(() ->
                     node1.role() == RaftRole.LEADER || node2.role() == RaftRole.LEADER || node3.role() == RaftRole.LEADER
             );
@@ -108,40 +108,40 @@ public class Sprint2Demo {
 
             long leadersCount = cluster.stream().filter(n -> n.role() == RaftRole.LEADER).count();
             if (leadersCount != 1) {
-                throw new AssertionError("Fler än 1 ledare vald! Antal: " + leadersCount);
+                throw new AssertionError("More than 1 leader elected! Count: " + leadersCount);
             }
 
-            System.out.println("   ✔ [AC1 PASS] Ledare vald: " + initialLeader.nodeId() +
-                    " för term " + initialLeader.currentTerm());
-            System.out.println("   ✔ [AC1 PASS] Säkerhetsinvariant verifierad: Exakt 1 ledare i term " +
+            System.out.println("   ✔ [AC1 PASS] Leader elected: " + initialLeader.nodeId() +
+                    " in Term " + initialLeader.currentTerm());
+            System.out.println("   ✔ [AC1 PASS] Safety Invariant verified: Exactly 1 leader in Term " +
                     initialLeader.currentTerm() + "\n");
 
             // 3. Acceptance Criterion 2: Followers reset timeout on valid heartbeat
-            System.out.println("▶ [3/4] [AC2] Verifierar hjärtslag (Heartbeat): Följare nollställer timeout...");
-            Thread.sleep(150); // Låt flera hjärtslagsrundor passera (30ms per runda)
+            System.out.println("▶ [3/4] [AC2] Verifying heartbeats: Followers reset election timer on valid heartbeat...");
+            Thread.sleep(150); // Allow multiple heartbeat intervals (30ms per round)
 
             for (RaftNode node : cluster) {
                 if (!node.nodeId().equals(initialLeader.nodeId())) {
                     if (node.role() != RaftRole.FOLLOWER) {
-                        throw new AssertionError("Nod " + node.nodeId() + " är inte follower!");
+                        throw new AssertionError("Node " + node.nodeId() + " is not follower!");
                     }
                     if (node.currentLeader().isEmpty() || !node.currentLeader().get().equals(initialLeader.nodeId())) {
-                        throw new AssertionError("Nod " + node.nodeId() + " känner inte igen ledaren!");
+                        throw new AssertionError("Node " + node.nodeId() + " does not recognize leader!");
                     }
-                    System.out.println("   ✔ [AC2 PASS] Nod " + node.nodeId() +
-                            " är stabil FOLLOWER och tar emot heartbeats från " + node.currentLeader().get());
+                    System.out.println("   ✔ [AC2 PASS] Node " + node.nodeId() +
+                            " is stable FOLLOWER and receives heartbeats from " + node.currentLeader().get());
                 }
             }
-            System.out.println("   ✔ [AC2 PASS] Hjärtslags-invariant verifierad: Alla följare nollställer sin timer.\n");
+            System.out.println("   ✔ [AC2 PASS] Heartbeat Invariant verified: All followers reset election timer.\n");
 
             // 4. Acceptance Criterion 3: Leader failure & re-election
-            System.out.println("▶ [4/4] [AC3] Simulerar ledarhaveri: Dödar " + initialLeader.nodeId() + "...");
+            System.out.println("▶ [4/4] [AC3] Simulating leader failure: Stopping leader " + initialLeader.nodeId() + "...");
             initialLeader.stop();
             if (initialLeader == node1) transport1.stop();
             else if (initialLeader == node2) transport2.stop();
             else transport3.stop();
 
-            System.out.println("   ⚡ Ledare " + initialLeader.nodeId() + " är nu död. Väntar på omval...");
+            System.out.println("   ⚡ Leader " + initialLeader.nodeId() + " terminated. Waiting for re-election...");
 
             List<RaftNode> remainingNodes = cluster.stream()
                     .filter(n -> !n.nodeId().equals(initialLeader.nodeId()))
@@ -161,19 +161,19 @@ public class Sprint2Demo {
                     .findFirst()
                     .orElseThrow();
 
-            System.out.println("   ✔ [AC3 PASS] Ny ledare vald: " + newLeader.nodeId() +
-                    " med ny högre term: " + newLeader.currentTerm() +
-                    " (föregående: " + initialLeader.currentTerm() + ")");
-            System.out.println("   ✔ [AC3 PASS] Följare " + newFollower.nodeId() +
-                    " erkänner nya ledaren: " + newFollower.currentLeader().orElse(null) + "\n");
+            System.out.println("   ✔ [AC3 PASS] New leader elected: " + newLeader.nodeId() +
+                    " with new higher Term: " + newLeader.currentTerm() +
+                    " (previous: " + initialLeader.currentTerm() + ")");
+            System.out.println("   ✔ [AC3 PASS] Follower " + newFollower.nodeId() +
+                    " acknowledges new leader: " + newFollower.currentLeader().orElse(null) + "\n");
 
             System.out.println("===============================================================");
-            System.out.println("     ALLA 3 ACCEPTANSKRITERIER FÖR SPRINT 2 GODKÄNDA! ");
+            System.out.println("     ALL 3 SPRINT 2 ACCEPTANCE CRITERIA VERIFIED!             ");
             System.out.println("===============================================================");
             System.exit(0);
 
         } catch (Exception e) {
-            System.err.println("\n❌ DEMONSTRATION MISSLYCKADES: " + e.getMessage());
+            System.err.println("\n❌ DEMONSTRATION FAILED: " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
         } finally {

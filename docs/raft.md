@@ -1,23 +1,23 @@
-# AegisDB Raft Konsensus: Ledarval & Loggreplikering
+# AegisDB Raft Consensus: Leader Election & Log Replication
 
 ---
 
-## 1. Översikt
+## 1. Overview
 
-Modulen `aegisdb_raft` implementerar Raft-konsensusprotokollet i Java 25 i enlighet med Ongaro & Ousterhout (§5.1, §5.2, §5.3, §5.4) och kursspecifikationen (Sektion 18, 20, 21, 22, 23, 24, 75, 82, 83 och 107).
+The `aegisdb_raft` module implements the Raft consensus protocol in Java 25 in accordance with Ongaro & Ousterhout (§5.1, §5.2, §5.3, §5.4) and the course specification (Sections 18, 20, 21, 22, 23, 24, 75, 82, 83, and 107).
 
-Den garanterar stark konsistens och feltolerans genom:
-- **Exakt en ledare per term:** Endast en nod kan vinna valet i en given term ($> N/2$ röster).
-- **Automatiskt omval vid fel:** Om en ledare kraschar eller nätverket partitioneras upptäcker följarna timeout och väljer en ny ledare.
-- **Majoritetsreplikering:** Klientskrivningar committas först när en strikt majoritet ($N/2 + 1$) av noderna har bekräftat posten.
-- **Loggkonsistens & konfliktlösning:** Om en följare har divergerande, ocommittade poster trunkeras dessa och ersätts med ledarens auktoritativa poster.
-- **Deterministiskt testbar:** Genom `Clock` och `Scheduler`-abstraktioner kan alla val och feltoleransscenarier testas deterministiskt utan slumpmässiga fördröjningar.
+It guarantees strong consistency and fault tolerance through:
+- **Exactly one leader per term:** Only one node can win the election in any given term ($> N/2$ votes).
+- **Automatic failover:** If a leader crashes or the network partitions, followers detect timeout and safely elect a new leader.
+- **Majority replication:** Client writes are committed only after a strict majority ($N/2 + 1$) of nodes acknowledge the entry.
+- **Log consistency & conflict repair:** If a follower has diverging, uncommitted entries, they are automatically truncated and replaced with authoritative leader entries.
+- **Deterministically testable:** Through `Clock` and `Scheduler` abstractions, all elections and fault scenarios are testable deterministically without unpredictable sleeps.
 
 ---
 
-## 2. Leader Election Sekvensdiagram (Sektion 125, US005)
+## 2. Leader Election Sequence Diagram (Section 125, US005)
 
-Nedanstående sekvensdiagram illustrerar ett normalt ledarval i ett 3-noders kluster:
+The sequence diagram below illustrates a normal leader election in a 3-node cluster:
 
 ```mermaid
 sequenceDiagram
@@ -26,33 +26,33 @@ sequenceDiagram
     participant B as Node B (Follower)
     participant C as Node C (Follower)
 
-    Note over A: Election timeout utlöses!
-    Note over A: Övergår till CANDIDATE<br/>Inkrementerar Term (Term = 1)<br/>Röstar på sig själv (1/3 röster)
+    Note over A: Election timeout fires!
+    Note over A: Transitions to CANDIDATE<br/>Increments Term (Term = 1)<br/>Votes for self (1/3 votes)
 
     A->>B: RequestVote(candidate=NodeA, term=1)
     A->>C: RequestVote(candidate=NodeA, term=1)
 
-    Note over B: Validerar: Term 1 > 0, ej röstat<br/>Beviljar röst & återställer timer
+    Note over B: Validates: Term 1 > 0, not voted<br/>Grants vote & resets election timer
     B-->>A: RequestVoteResponse(term=1, voteGranted=true)
 
-    Note over C: Validerar: Term 1 > 0, ej röstat<br/>Beviljar röst & återställer timer
+    Note over C: Validates: Term 1 > 0, not voted<br/>Grants vote & resets election timer
     C-->>A: RequestVoteResponse(term=1, voteGranted=true)
 
-    Note over A: Majoritet uppnådd (3/3 röster)!<br/>Övergår till LEADER
+    Note over A: Quorum reached (3/3 votes)!<br/>Transitions to LEADER
 
     A->>B: AppendEntries(heartbeat, term=1, leader=NodeA)
     A->>C: AppendEntries(heartbeat, term=1, leader=NodeA)
 
-    Note over B,C: Bekräftar ledare & återställer ElectionTimer
+    Note over B,C: Confirms leader & resets ElectionTimer
     B-->>A: AppendEntriesResponse(term=1, success=true)
     C-->>A: AppendEntriesResponse(term=1, success=true)
 ```
 
 ---
 
-## 3. Log Replication Sekvensdiagram (US006)
+## 3. Log Replication Sequence Diagram (US006)
 
-Klientpropositionsflöde med majoritetskvittering och framflyttning av commit-index:
+Client proposal workflow with majority acknowledgment and commit index advancement:
 
 ```mermaid
 sequenceDiagram
@@ -63,32 +63,32 @@ sequenceDiagram
     participant F2 as Node 3 (Follower)
 
     Client->>Leader: propose("SET account:1 1000")
-    Note over Leader: Lägger till i lokal RaftLog (Index 1, Term 1)
-    Note over Leader: Broadcast Replication till följare
+    Note over Leader: Appends to local RaftLog (Index 1, Term 1)
+    Note over Leader: Broadcasts replication to followers
 
     Leader->>F1: AppendEntries(term=1, prevIdx=0, entries=[Entry 1], commit=0)
     Leader->>F2: AppendEntries(term=1, prevIdx=0, entries=[Entry 1], commit=0)
 
-    Note over F1: Validerar prevLogIndex 0<br/>Appendar Entry 1 till logg
+    Note over F1: Validates prevLogIndex 0<br/>Appends Entry 1 to log
     F1-->>Leader: AppendEntriesResponse(term=1, success=true, matchIndex=1)
 
-    Note over Leader: 2 av 3 noder har kvitterat (Majoritet uppnådd!)<br/>Flyttar fram commitIndex till 1
+    Note over Leader: 2 of 3 nodes acknowledged (Majority reached!)<br/>Advances commitIndex to 1
     Leader-->>Client: CompletableFuture.complete(commitIndex=1)
 
-    Note over F2: Appendar Entry 1 till logg
+    Note over F2: Appends Entry 1 to log
     F2-->>Leader: AppendEntriesResponse(term=1, success=true, matchIndex=1)
 
-    Note over Leader: Sänder uppdaterat leaderCommit via nästa replication/heartbeat
+    Note over Leader: Sends updated leaderCommit via next replication/heartbeat
     Leader->>F1: AppendEntries(heartbeat, commit=1)
     Leader->>F2: AppendEntries(heartbeat, commit=1)
-    Note over F1,F2: Uppdaterar lokal commitIndex till 1
+    Note over F1,F2: Updates local commitIndex to 1
 ```
 
 ---
 
 ## 4. Log Conflict Resolution (Ongaro §5.3)
 
-Om en följare har divergerande poster från en tidigare term som aldrig committades:
+Handling a follower with diverging, uncommitted entries from a previous term:
 
 ```mermaid
 sequenceDiagram
@@ -96,39 +96,39 @@ sequenceDiagram
     participant Leader as Leader (Term 2)
     participant Follower as Follower (Term 1 stale)
 
-    Note over Follower: Logg innehåller [Index 1: Term 1, Index 2: Term 1 (stale)]
-    Note over Leader: Logg innehåller [Index 1: Term 1, Index 2: Term 2 (authoritative)]
+    Note over Follower: Log contains [Index 1: Term 1, Index 2: Term 1 (stale)]
+    Note over Leader: Log contains [Index 1: Term 1, Index 2: Term 2 (authoritative)]
 
     Leader->>Follower: AppendEntries(prevIdx=2, prevTerm=2, entries=[...])
-    Note over Follower: LogConflictResolver: Term-mismatch på index 2 (1 != 2)!
+    Note over Follower: LogConflictResolver: Term mismatch at index 2 (1 != 2)!
     Follower-->>Leader: AppendEntriesResponse(success=false, matchIndex=1)
 
-    Note over Leader: ReplicationManager backar nextIndex till 2
+    Note over Leader: ReplicationManager decrements nextIndex to 2
     Leader->>Follower: AppendEntries(prevIdx=1, prevTerm=1, entries=[Index 2: Term 2])
-    Note over Follower: LogConflictResolver: prevLog matchar!<br/>Trunkerar felaktiga poster från index 2<br/>Appendar ledarens auktoritativa post
+    Note over Follower: LogConflictResolver: prevLog matches!<br/>Truncates invalid entries from index 2<br/>Appends authoritative leader entry
     Follower-->>Leader: AppendEntriesResponse(success=true, matchIndex=2)
 ```
 
 ---
 
-## 5. Tillståndsmaskin för Roller
+## 5. Node Role State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> FOLLOWER: Uppstart
-    FOLLOWER --> CANDIDATE: Election Timeout utlöses
-    CANDIDATE --> LEADER: Erhåller röster från majoritet (> N/2)
-    CANDIDATE --> CANDIDATE: Ny Election Timeout (Split vote / ingen majoritet)
-    CANDIDATE --> FOLLOWER: Upptäcker giltig ledare eller högre term
-    LEADER --> FOLLOWER: Upptäcker högre term hos peer
+    [*] --> FOLLOWER: Startup
+    FOLLOWER --> CANDIDATE: Election Timeout fires
+    CANDIDATE --> LEADER: Receives votes from majority (> N/2)
+    CANDIDATE --> CANDIDATE: New Election Timeout (Split vote / no quorum)
+    CANDIDATE --> FOLLOWER: Discovers valid leader or higher term
+    LEADER --> FOLLOWER: Discovers peer with higher term
 ```
 
 ---
 
-## 6. Invarianter som aldrig får brytas (Sektion 20 & 75)
+## 6. Strict Raft Invariants (Sections 20 & 75)
 
-1. **At most one leader per term:** Högst en ledare får någonsin väljas i en given term.
-2. **Terms never decrease:** En nods term får aldrig minska i värde.
-3. **At most one vote per term:** En nod röstar högst en gång per term.
-4. **Committed entries are never overwritten:** En post som har committats av en majoritet får aldrig trunkeras eller skrivas över.
-5. **Committed entries appear in identical order:** Samtliga klusternoder har identisk sekvens av poster upp till commit-index.
+1. **At most one leader per term:** At most one leader may ever be elected in any given term.
+2. **Terms never decrease:** A node's term must never decrease in value.
+3. **At most one vote per term:** A node votes at most once per term.
+4. **Committed entries are never overwritten:** An entry committed by a majority must never be truncated or overwritten.
+5. **Committed entries appear in identical order:** All cluster nodes share an identical sequence of committed entries up to commit-index.

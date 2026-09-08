@@ -2,7 +2,7 @@
 set -e
 
 echo "======================================================================="
-echo "  AegisDB: Kör Sprint 5 Live Demonstration & Milestone M2 Gate"
+echo "  AegisDB: Run Sprint 5 Live Demonstration & Milestone M2 Gate"
 echo "  Snapshots & Replicated Key-Value Store (US009 & US010)"
 echo "======================================================================="
 

@@ -1,30 +1,30 @@
-# AegisDB Konsistensmodell & Hållbarhetsgaranti
+# AegisDB Consistency & Durability Model
 
 ---
 
-## 1. Konsistensmodell (Consistency Model)
+## 1. Consistency Model
 
-AegisDB tillhandahåller väldefinierade konsistensgarantier för både enskilda nyckel-värde-operationer och distribuerade transaktioner:
+AegisDB provides well-defined consistency guarantees for both individual key-value operations and distributed transactions:
 
-### Nyckel-värde-nivå (Raft Group)
-- **Linearizability (Stark Konsistens):**
-  Alla bekräftade skrivningar och läsningar inom en enskild Raft-grupp är linjäriserbara. Det garanteras att när en skrivning har bekräftats med `SUCCESS` kommer alla efterföljande läsningar att se antingen det värdet eller ett ännu nyare värde.
+### Key-Value Operations (Raft Group)
+- **Linearizability (Strong Consistency):**
+  All confirmed writes and reads within an individual Raft group are linearizable. Once a write is acknowledged with `SUCCESS`, all subsequent reads are guaranteed to observe either that value or a newer committed value.
 
-### Transaktionsnivå (MVCC)
+### Transaction Level (MVCC)
 - **Snapshot Isolation (Standard):**
-  Transaktioner läser från en konsekvent ögonblicksbild (snapshot) som fastställs vid transaktionsstart.
-  - Läsare blockerar inte skrivare, och skrivare blockerar inte läsare.
-  - Förhindrar Dirty Reads, Non-Repeatable Reads och Lost Updates.
-- **Serializable Validation (Avancerat mål):**
-  Validering av ReadSet och WriteSet vid commit för att upptäcka och avbryta konflikter (t.ex. Write Skew).
+  Transactions read from a consistent snapshot established at transaction start.
+  - Readers never block writers, and writers never block readers.
+  - Prevents Dirty Reads, Non-Repeatable Reads, and Lost Updates.
+- **Serializable Validation (Advanced Milestone):**
+  Validation of ReadSet and WriteSet at commit time to detect and abort conflicting transactions (e.g., Write Skew).
 
 ---
 
-## 2. Hållbarhetsgaranti (Durability Guarantee)
+## 2. Durability Guarantee
 
-> **Inget `SUCCESS`-svar skickas till klienten innan den definierade hållbarhetsgarantin är uppfylld.**
+> **No `SUCCESS` response is returned to the client before the defined durability guarantees are satisfied.**
 
-När klienten mottar ett `SUCCESS`-svar gäller:
-1. Loggposten har säkrats i quorum (strikt majoritet av Raft-noder).
-2. Data har persisterats till disk via Write-Ahead Log (WAL) med nödvändig `fsync`-policy.
-3. Operationen överlever krascher och omstarter av upp till $\lfloor(N - 1) / 2\rfloor$ noder utan dataförlust.
+When a client receives a `SUCCESS` confirmation:
+1. The log entry has been committed by quorum (strict majority of Raft nodes).
+2. Data has been physically persisted to disk via the Write-Ahead Log (WAL) according to the active `fsync` policy.
+3. The committed state survives crashes and restarts of up to $\lfloor(N - 1) / 2\rfloor$ nodes without data loss.
