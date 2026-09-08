@@ -25,6 +25,14 @@ public record RaftLogEntry(
         data = data == null ? new byte[0] : data.clone();
     }
 
+    public RaftLogEntry(long index, long term, RaftCommand command) {
+        this(index, term, command != null ? command.payload() : new byte[0]);
+    }
+
+    public RaftCommand command() {
+        return RaftCommand.of(data);
+    }
+
     @Override
     public byte[] data() {
         return data.clone();

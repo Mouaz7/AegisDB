@@ -9,7 +9,7 @@ import java.util.Optional;
  * In-memory 1-indexed Raft log implementation (Section 18, 83; Ongaro §5.3).
  * Thread-safe for read and append operations.
  */
-public class RaftLog {
+public class RaftLog implements RaftLogRepository {
     private final List<RaftLogEntry> entries = new ArrayList<>();
 
     public RaftLog() {

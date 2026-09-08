@@ -126,4 +126,25 @@ class RaftLogTest {
         assertThat(RaftLogEntry.deserializeList(new byte[0])).isEmpty();
         assertThat(RaftLogEntry.deserializeList(null)).isEmpty();
     }
+
+    @Test
+    @DisplayName("RaftCommand integration with RaftLogEntry (Section 18)")
+    void raftCommandIntegration() {
+        RaftCommand cmd = RaftCommand.of("PUT user:100 Alice");
+        RaftLogEntry entry = new RaftLogEntry(1, 1, cmd);
+
+        assertThat(entry.command()).isEqualTo(cmd);
+        assertThat(entry.command().asString()).isEqualTo("PUT user:100 Alice");
+        assertThat(new String(entry.data(), StandardCharsets.UTF_8)).isEqualTo("PUT user:100 Alice");
+    }
+
+    @Test
+    @DisplayName("RaftLog implements RaftLogRepository contract (Section 18)")
+    void raftLogRepositoryContract() {
+        RaftLogRepository repo = new RaftLog();
+        repo.append(new RaftLogEntry(1, 1, RaftCommand.of("cmd1")));
+        assertThat(repo.lastLogIndex()).isEqualTo(1L);
+        assertThat(repo.lastLogTerm()).isEqualTo(1L);
+        assertThat(repo.allEntries()).hasSize(1);
+    }
 }

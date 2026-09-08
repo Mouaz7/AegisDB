@@ -17,6 +17,16 @@ import java.util.Objects;
 public class LogConflictResolver {
     private static final Logger log = LoggerFactory.getLogger(LogConflictResolver.class);
 
+    private final LogConsistencyChecker consistencyChecker;
+
+    public LogConflictResolver(LogConsistencyChecker consistencyChecker) {
+        this.consistencyChecker = consistencyChecker != null ? consistencyChecker : new LogConsistencyChecker();
+    }
+
+    public LogConflictResolver() {
+        this(new LogConsistencyChecker());
+    }
+
     /**
      * Verifies consistency with leader's prevLogIndex/prevLogTerm, repairs any conflicts,
      * appends new entries, and advances commitIndex if needed.
@@ -29,36 +39,20 @@ public class LogConflictResolver {
         Objects.requireNonNull(request, "request cannot be null");
         Objects.requireNonNull(volatileState, "volatileState cannot be null");
 
-        long prevLogIndex = request.prevLogIndex();
-        long prevLogTerm = request.prevLogTerm();
-
-        // 1. Reply false if log doesn't contain an entry at prevLogIndex matching prevLogTerm (§5.3)
-        if (prevLogIndex > 0) {
-            if (raftLog.lastLogIndex() < prevLogIndex) {
-                log.debug("Log reject: lastLogIndex {} < prevLogIndex {}", raftLog.lastLogIndex(), prevLogIndex);
-                return new AppendEntriesResponse(
-                        currentTerm,
-                        false,
-                        raftLog.lastLogIndex(),
-                        "Missing entry at prevLogIndex " + prevLogIndex + ", follower only has " + raftLog.lastLogIndex()
-                );
-            }
-
-            long actualTermAtPrev = raftLog.getTerm(prevLogIndex);
-            if (actualTermAtPrev != prevLogTerm) {
-                log.debug("Log reject: term mismatch at prevLogIndex {}: follower has term {} but leader sent prevLogTerm {}",
-                        prevLogIndex, actualTermAtPrev, prevLogTerm);
-                return new AppendEntriesResponse(
-                        currentTerm,
-                        false,
-                        Math.max(0, prevLogIndex - 1),
-                        "Term mismatch at prevLogIndex " + prevLogIndex + ": follower term " + actualTermAtPrev + " != leader " + prevLogTerm
-                );
-            }
+        // 1. Consistency check via LogConsistencyChecker (§5.3, Section 22)
+        LogConsistencyChecker.ConsistencyResult checkResult = consistencyChecker.check(raftLog, request);
+        if (!checkResult.consistent()) {
+            return new AppendEntriesResponse(
+                    currentTerm,
+                    false,
+                    checkResult.conflictHintIndex(),
+                    checkResult.reason()
+            );
         }
 
         // 2. Process incoming entries
         List<RaftLogEntry> entries = RaftLogEntry.deserializeList(request.entries());
+        long prevLogIndex = request.prevLogIndex();
         long insertIndex = prevLogIndex;
 
         for (RaftLogEntry entry : entries) {
