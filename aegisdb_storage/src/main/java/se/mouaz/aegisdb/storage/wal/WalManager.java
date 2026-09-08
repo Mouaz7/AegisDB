@@ -189,6 +189,43 @@ public class WalManager implements Closeable {
         storageIndex.truncateFrom(fromSequenceNumber);
     }
 
+    /**
+     * Purges all sealed segments whose segmentId is strictly less than targetSegmentId.
+     * The active segment is never deleted.
+     */
+    public synchronized void purgeSegmentsPriorTo(long targetSegmentId) throws IOException {
+        List<Long> toRemove = new ArrayList<>();
+        for (Long segId : segments.keySet()) {
+            if (segId < targetSegmentId && (activeSegment == null || segId < activeSegment.segmentId())) {
+                toRemove.add(segId);
+            }
+        }
+
+        for (Long segId : toRemove) {
+            WalSegment seg = segments.remove(segId);
+            if (seg != null) {
+                Files.deleteIfExists(seg.path());
+                log.info("Purged compacted WAL segment: {}", seg.path().getFileName());
+            }
+        }
+    }
+
+    /**
+     * Purges sealed segments whose entries are all strictly less than upToSequenceNumber,
+     * using the current storageIndex to identify the minimum active segment.
+     */
+    public synchronized void purgeSegmentsPriorTo(long upToSequenceNumber, StorageIndex storageIndex) throws IOException {
+        if (upToSequenceNumber <= 0 || storageIndex == null) {
+            return;
+        }
+        long minRemainingSegId = storageIndex.allEntries().values().stream()
+                .mapToLong(StorageIndex.IndexEntry::segmentId)
+                .min()
+                .orElse(activeSegment != null ? activeSegment.segmentId() : Long.MAX_VALUE);
+
+        purgeSegmentsPriorTo(minRemainingSegId);
+    }
+
     @Override
     public synchronized void close() throws IOException {
         if (activeWriter != null) {

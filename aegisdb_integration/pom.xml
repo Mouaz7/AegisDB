@@ -40,6 +40,10 @@
             <groupId>se.mouaz.aegisdb</groupId>
             <artifactId>aegisdb_storage</artifactId>
         </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb_client</artifactId>
+        </dependency>
 
         <!-- Logging -->
         <dependency>

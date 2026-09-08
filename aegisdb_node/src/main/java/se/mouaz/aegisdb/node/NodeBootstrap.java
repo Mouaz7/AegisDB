@@ -32,4 +32,12 @@ public final class NodeBootstrap {
         RaftTransport transport = new InMemoryTransport(nodeConfig.nodeId(), nodeConfig.networkConfig().requestTimeout());
         return new DatabaseNode(nodeConfig, clusterConfig, transport, storageEngine, raftNode);
     }
+
+    public static DatabaseNode createPersistentNode(NodeConfiguration nodeConfig,
+                                                    ClusterConfiguration clusterConfig,
+                                                    RaftTransport transport,
+                                                    se.mouaz.aegisdb.storage.StorageEngine storageEngine,
+                                                    se.mouaz.aegisdb.raft.RaftNode raftNode) {
+        return new DatabaseNode(nodeConfig, clusterConfig, transport, storageEngine, raftNode);
+    }
 }

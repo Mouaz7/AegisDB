@@ -6,11 +6,14 @@ import se.mouaz.aegisdb.common.ClusterConfiguration;
 import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.protocol.AppendEntriesRequest;
 import se.mouaz.aegisdb.protocol.AppendEntriesResponse;
+import se.mouaz.aegisdb.protocol.InstallSnapshotResponse;
 import se.mouaz.aegisdb.raft.NotLeaderException;
 import se.mouaz.aegisdb.raft.event.AppendEntriesResponseEvent;
+import se.mouaz.aegisdb.raft.event.InstallSnapshotResponseEvent;
 import se.mouaz.aegisdb.raft.event.RaftEvent;
 import se.mouaz.aegisdb.raft.log.RaftLog;
 import se.mouaz.aegisdb.raft.log.RaftLogEntry;
+import se.mouaz.aegisdb.raft.snapshot.SnapshotManager;
 import se.mouaz.aegisdb.raft.state.RaftInvariants;
 import se.mouaz.aegisdb.raft.state.RaftRole;
 import se.mouaz.aegisdb.raft.state.RaftState;
@@ -35,8 +38,9 @@ public class ReplicationManager {
     private final CommitIndexManager commitIndexManager;
     private final Consumer<RaftEvent> eventDispatcher;
 
-    private final Map<NodeId, FollowerReplicationState> followers = new ConcurrentHashMap<>();
     private final Map<Long, CompletableFuture<Long>> pendingClientFutures = new ConcurrentHashMap<>();
+    private final Map<NodeId, FollowerReplicationState> followers = new ConcurrentHashMap<>();
+    private SnapshotManager snapshotManager;
 
     public ReplicationManager(NodeId localNodeId,
                               RaftState state,
@@ -52,6 +56,10 @@ public class ReplicationManager {
         this.transport = Objects.requireNonNull(transport, "transport cannot be null");
         this.commitIndexManager = commitIndexManager != null ? commitIndexManager : new CommitIndexManager();
         this.eventDispatcher = Objects.requireNonNull(eventDispatcher, "eventDispatcher cannot be null");
+    }
+
+    public void setSnapshotManager(SnapshotManager snapshotManager) {
+        this.snapshotManager = snapshotManager;
     }
 
     /**
@@ -127,6 +135,25 @@ public class ReplicationManager {
         }
 
         long next = follower.nextIndex();
+        if (next <= raftLog.snapshotIndex()) {
+            log.info("Leader {}: follower {} nextIndex {} <= snapshotIndex {}. Triggering InstallSnapshot catch-up.",
+                    localNodeId, peer, next, raftLog.snapshotIndex());
+            if (snapshotManager != null) {
+                snapshotManager.sendSnapshot(peer, state.currentTerm(), localNodeId, transport)
+                        .whenComplete((response, ex) -> {
+                            follower.finishRpc();
+                            if (ex == null && response != null) {
+                                eventDispatcher.accept(new InstallSnapshotResponseEvent(peer, state.currentTerm(), response, raftLog.snapshotIndex()));
+                            } else {
+                                log.debug("InstallSnapshot to peer {} failed: {}", peer, ex != null ? ex.getMessage() : "null");
+                            }
+                        });
+            } else {
+                follower.finishRpc();
+            }
+            return;
+        }
+
         long prevLogIndex = next - 1;
         long prevLogTerm = raftLog.getTerm(prevLogIndex);
         List<RaftLogEntry> entries = raftLog.getEntriesFrom(next);
@@ -152,6 +179,40 @@ public class ReplicationManager {
                         peer, ex != null ? ex.getMessage() : "null response");
             }
         });
+    }
+
+    /**
+     * Handles InstallSnapshotResponse on the leader's event loop.
+     */
+    public void handleInstallSnapshotResponse(NodeId peer, InstallSnapshotResponse response, long snapshotIndex) {
+        if (state.role() != RaftRole.LEADER) {
+            return;
+        }
+        FollowerReplicationState follower = followers.get(peer);
+        if (follower == null) {
+            return;
+        }
+
+        if (response.term() > state.currentTerm()) {
+            log.info("Leader {} stepping down: peer {} returned higher term {} on InstallSnapshot",
+                    localNodeId, peer, response.term());
+            state.becomeFollower(response.term(), null);
+            failPendingFutures(new NotLeaderException(null));
+            return;
+        }
+
+        if (response.success()) {
+            follower.recordSuccess(snapshotIndex);
+            follower.setNextIndex(snapshotIndex + 1);
+            follower.setMatchIndex(snapshotIndex);
+            state.leaderState().setMatchIndex(peer, snapshotIndex);
+            state.leaderState().setNextIndex(peer, snapshotIndex + 1);
+            log.info("Follower {} caught up via InstallSnapshot to index {}", peer, snapshotIndex);
+
+            if (follower.matchIndex() < raftLog.lastLogIndex()) {
+                replicateTo(peer);
+            }
+        }
     }
 
     /**

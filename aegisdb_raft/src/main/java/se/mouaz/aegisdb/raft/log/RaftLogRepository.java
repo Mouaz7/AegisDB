@@ -22,4 +22,7 @@ public interface RaftLogRepository {
     void append(List<RaftLogEntry> entries);
     void truncateFrom(long fromIndex, long commitIndex);
     void truncateFrom(long fromIndex);
+    default long snapshotIndex() { return 0; }
+    default long snapshotTerm() { return 0; }
+    default void compactUpTo(long snapshotIndex, long snapshotTerm) {}
 }

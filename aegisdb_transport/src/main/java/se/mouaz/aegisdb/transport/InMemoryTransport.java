@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.protocol.AppendEntriesRequest;
 import se.mouaz.aegisdb.protocol.AppendEntriesResponse;
+import se.mouaz.aegisdb.protocol.InstallSnapshotRequest;
+import se.mouaz.aegisdb.protocol.InstallSnapshotResponse;
 import se.mouaz.aegisdb.protocol.RequestVoteRequest;
 import se.mouaz.aegisdb.protocol.RequestVoteResponse;
 
@@ -88,6 +90,17 @@ public class InMemoryTransport implements RaftTransport {
                 throw TransportException.nodeNotFound("Target node " + destination + " is unreachable or stopped");
             }
             return target.handler.handleAppendEntries(request);
+        });
+    }
+
+    @Override
+    public CompletableFuture<InstallSnapshotResponse> installSnapshot(NodeId destination, InstallSnapshotRequest request) {
+        return executeRpc(destination, "InstallSnapshot", () -> {
+            InMemoryTransport target = REGISTRY.get(destination);
+            if (target == null || !target.isRunning() || target.handler == null) {
+                throw TransportException.nodeNotFound("Target node " + destination + " is unreachable or stopped");
+            }
+            return target.handler.handleInstallSnapshot(request);
         });
     }
 

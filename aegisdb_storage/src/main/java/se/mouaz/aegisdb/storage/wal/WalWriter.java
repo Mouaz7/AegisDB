@@ -15,6 +15,10 @@ public class WalWriter implements Closeable {
         this.walManager = Objects.requireNonNull(walManager, "walManager cannot be null");
     }
 
+    public WalManager walManager() {
+        return walManager;
+    }
+
     public StorageIndex.IndexEntry append(StorageRecord record) throws IOException {
         return walManager.append(record);
     }

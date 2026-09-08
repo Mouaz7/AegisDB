@@ -10,11 +10,29 @@ import java.util.Optional;
  * Thread-safe for read and append operations.
  */
 public class RaftLog implements RaftLogRepository {
+    private long snapshotIndex = 0;
+    private long snapshotTerm = 0;
     private final List<RaftLogEntry> entries = new ArrayList<>();
 
     public RaftLog() {
-        // Index 0 is a sentinel representing empty state (term 0)
-        entries.add(new RaftLogEntry(0, 0, new byte[0]));
+        this(0, 0);
+    }
+
+    public RaftLog(long snapshotIndex, long snapshotTerm) {
+        this.snapshotIndex = snapshotIndex;
+        this.snapshotTerm = snapshotTerm;
+        // Index 0 is a sentinel representing empty or snapshot state
+        this.entries.add(new RaftLogEntry(snapshotIndex, snapshotTerm, new byte[0]));
+    }
+
+    @Override
+    public synchronized long snapshotIndex() {
+        return snapshotIndex;
+    }
+
+    @Override
+    public synchronized long snapshotTerm() {
+        return snapshotTerm;
     }
 
     public synchronized long lastLogIndex() {
@@ -34,30 +52,33 @@ public class RaftLog implements RaftLogRepository {
     }
 
     public synchronized long getTerm(long index) {
-        if (index == 0) {
-            return 0;
+        if (index == snapshotIndex) {
+            return snapshotTerm;
         }
-        if (index < 0 || index > lastLogIndex()) {
+        if (index < snapshotIndex || index > lastLogIndex()) {
             return -1;
         }
-        return entries.get((int) index).term();
+        int offset = (int) (index - snapshotIndex);
+        return entries.get(offset).term();
     }
 
     public synchronized Optional<RaftLogEntry> getEntry(long index) {
-        if (index <= 0 || index > lastLogIndex()) {
+        if (index <= snapshotIndex || index > lastLogIndex()) {
             return Optional.empty();
         }
-        return Optional.of(entries.get((int) index));
+        int offset = (int) (index - snapshotIndex);
+        return Optional.of(entries.get(offset));
     }
 
     public synchronized boolean matchTerm(long index, long term) {
-        if (index == 0) {
-            return term == 0;
+        if (index == snapshotIndex) {
+            return snapshotTerm == term;
         }
-        if (index < 0 || index > lastLogIndex()) {
+        if (index < snapshotIndex || index > lastLogIndex()) {
             return false;
         }
-        return entries.get((int) index).term() == term;
+        int offset = (int) (index - snapshotIndex);
+        return entries.get(offset).term() == term;
     }
 
     public synchronized void append(RaftLogEntry entry) {
@@ -86,20 +107,20 @@ public class RaftLog implements RaftLogRepository {
     }
 
     public synchronized List<RaftLogEntry> getEntriesFrom(long startIndex, int maxEntries) {
-        if (startIndex <= 0) {
-            startIndex = 1;
+        if (startIndex <= snapshotIndex) {
+            startIndex = snapshotIndex + 1;
         }
         if (startIndex > lastLogIndex() || maxEntries <= 0) {
             return Collections.emptyList();
         }
-        int from = (int) startIndex;
-        int to = (int) Math.min(entries.size(), startIndex + maxEntries);
+        int from = (int) (startIndex - snapshotIndex);
+        int to = (int) Math.min((long) entries.size(), (long) from + maxEntries);
         List<RaftLogEntry> slice = new ArrayList<>(entries.subList(from, to));
         return Collections.unmodifiableList(slice);
     }
 
     public synchronized List<RaftLogEntry> allEntries() {
-        if (isEmpty()) {
+        if (entries.size() <= 1) {
             return Collections.emptyList();
         }
         return Collections.unmodifiableList(new ArrayList<>(entries.subList(1, entries.size())));
@@ -110,8 +131,9 @@ public class RaftLog implements RaftLogRepository {
      * Used by LogConflictResolver to delete uncommitted conflicting entries.
      */
     public synchronized void truncateFrom(long fromIndex, long commitIndex) {
-        if (fromIndex <= 0) {
-            throw new IllegalArgumentException("Cannot truncate sentinel index: " + fromIndex);
+        if (fromIndex <= snapshotIndex) {
+            throw new IllegalArgumentException("Cannot truncate already compacted entries: fromIndex="
+                    + fromIndex + ", snapshotIndex=" + snapshotIndex);
         }
         if (fromIndex <= commitIndex) {
             throw new IllegalStateException("Raft Invariant Violation: Cannot truncate committed entries! fromIndex: "
@@ -120,7 +142,8 @@ public class RaftLog implements RaftLogRepository {
         if (fromIndex > lastLogIndex()) {
             return;
         }
-        while (entries.size() > fromIndex) {
+        int offset = (int) (fromIndex - snapshotIndex);
+        while (entries.size() > offset) {
             entries.remove(entries.size() - 1);
         }
     }
@@ -130,5 +153,28 @@ public class RaftLog implements RaftLogRepository {
      */
     public synchronized void truncateFrom(long fromIndex) {
         truncateFrom(fromIndex, 0L);
+    }
+
+    /**
+     * Discards log entries up through newSnapshotIndex.
+     * The entry at newSnapshotIndex becomes the new log sentinel.
+     */
+    @Override
+    public synchronized void compactUpTo(long newSnapshotIndex, long newSnapshotTerm) {
+        if (newSnapshotIndex <= snapshotIndex) {
+            return;
+        }
+        if (newSnapshotIndex >= lastLogIndex()) {
+            entries.clear();
+            entries.add(new RaftLogEntry(newSnapshotIndex, newSnapshotTerm, new byte[0]));
+        } else {
+            int offset = (int) (newSnapshotIndex - snapshotIndex);
+            List<RaftLogEntry> remaining = new ArrayList<>(entries.subList(offset + 1, entries.size()));
+            entries.clear();
+            entries.add(new RaftLogEntry(newSnapshotIndex, newSnapshotTerm, new byte[0]));
+            entries.addAll(remaining);
+        }
+        this.snapshotIndex = newSnapshotIndex;
+        this.snapshotTerm = newSnapshotTerm;
     }
 }

@@ -58,4 +58,32 @@ class ProtocolAdapterTest {
         AppendEntriesResponse roundtripResp = ProtocolAdapter.fromProto(protoReply);
         assertThat(roundtripResp).isEqualTo(domainResp);
     }
+
+    @Test
+    void testInstallSnapshotConversion() {
+        byte[] snapshotData = "snapshot-state-machine-bytes".getBytes(StandardCharsets.UTF_8);
+        InstallSnapshotRequest domainReq = new InstallSnapshotRequest(
+                4, NodeId.of("leader-1"), 100, 3, 0, snapshotData, true);
+        se.mouaz.aegisdb.protocol.pb.InstallSnapshotArgs protoArgs = ProtocolAdapter.toProto(domainReq);
+
+        assertThat(protoArgs.getTerm()).isEqualTo(4);
+        assertThat(protoArgs.getLeaderId()).isEqualTo("leader-1");
+        assertThat(protoArgs.getLastIncludedIndex()).isEqualTo(100);
+        assertThat(protoArgs.getLastIncludedTerm()).isEqualTo(3);
+        assertThat(protoArgs.getOffset()).isEqualTo(0);
+        assertThat(protoArgs.getData().toByteArray()).isEqualTo(snapshotData);
+        assertThat(protoArgs.getDone()).isTrue();
+
+        InstallSnapshotRequest roundtripReq = ProtocolAdapter.fromProto(protoArgs);
+        assertThat(roundtripReq).isEqualTo(domainReq);
+
+        InstallSnapshotResponse domainResp = InstallSnapshotResponse.success(4);
+        se.mouaz.aegisdb.protocol.pb.InstallSnapshotReply protoReply = ProtocolAdapter.toProto(domainResp);
+
+        assertThat(protoReply.getTerm()).isEqualTo(4);
+        assertThat(protoReply.getSuccess()).isTrue();
+
+        InstallSnapshotResponse roundtripResp = ProtocolAdapter.fromProto(protoReply);
+        assertThat(roundtripResp).isEqualTo(domainResp);
+    }
 }

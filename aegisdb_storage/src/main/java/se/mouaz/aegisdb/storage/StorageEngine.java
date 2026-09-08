@@ -8,15 +8,21 @@ import se.mouaz.aegisdb.storage.recovery.RecoveryManager;
 import se.mouaz.aegisdb.storage.recovery.RecoveryResult;
 import se.mouaz.aegisdb.storage.wal.*;
 
+import se.mouaz.aegisdb.storage.snapshot.FileSnapshotReader;
+import se.mouaz.aegisdb.storage.snapshot.FileSnapshotWriter;
+import se.mouaz.aegisdb.storage.snapshot.SnapshotReader;
+import se.mouaz.aegisdb.storage.snapshot.SnapshotWriter;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Top-level facade for local node storage and recovery (Master Project Plan §4, §8, §11).
- * Coordinates WAL, segment lifecycle, atomic metadata, and crash recovery.
+ * Coordinates WAL, segment lifecycle, atomic metadata, snapshots, and crash recovery.
  */
 public class StorageEngine implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(StorageEngine.class);
@@ -24,11 +30,14 @@ public class StorageEngine implements Closeable {
     private final Path baseDataDir;
     private final Path walDir;
     private final Path metaDir;
+    private final Path snapshotDir;
     private final WalConfig walConfig;
 
     private final WalManager walManager;
     private final WalWriter walWriter;
     private final RaftMetadataStorage metadataStorage;
+    private final FileSnapshotWriter snapshotWriter;
+    private final FileSnapshotReader snapshotReader;
     private final RecoveryManager recoveryManager;
     private final StorageIndex storageIndex;
 
@@ -36,9 +45,11 @@ public class StorageEngine implements Closeable {
         this.baseDataDir = validateDataDir(baseDataDir);
         this.walDir = baseDataDir.resolve("wal");
         this.metaDir = baseDataDir.resolve("meta");
+        this.snapshotDir = baseDataDir.resolve("snapshots");
 
         Files.createDirectories(walDir);
         Files.createDirectories(metaDir);
+        Files.createDirectories(snapshotDir);
 
         this.walConfig = WalConfig.builder()
                 .walDir(walDir)
@@ -49,7 +60,9 @@ public class StorageEngine implements Closeable {
         this.walManager = new WalManager(walConfig);
         this.walWriter = new WalWriter(walManager);
         this.metadataStorage = new FileRaftMetadataStorage(metaDir);
-        this.recoveryManager = new RecoveryManager(metadataStorage, walManager);
+        this.snapshotWriter = new FileSnapshotWriter(snapshotDir);
+        this.snapshotReader = new FileSnapshotReader(snapshotDir);
+        this.recoveryManager = new RecoveryManager(metadataStorage, walManager, snapshotReader);
         this.storageIndex = new StorageIndex();
     }
 
@@ -81,6 +94,10 @@ public class StorageEngine implements Closeable {
         return metaDir;
     }
 
+    public Path snapshotDir() {
+        return snapshotDir;
+    }
+
     public WalManager walManager() {
         return walManager;
     }
@@ -93,6 +110,14 @@ public class StorageEngine implements Closeable {
         return metadataStorage;
     }
 
+    public FileSnapshotWriter snapshotWriter() {
+        return snapshotWriter;
+    }
+
+    public FileSnapshotReader snapshotReader() {
+        return snapshotReader;
+    }
+
     public RecoveryManager recoveryManager() {
         return recoveryManager;
     }
@@ -101,14 +126,28 @@ public class StorageEngine implements Closeable {
         return storageIndex;
     }
 
+    public SnapshotWriter.SnapshotWriteResult saveSnapshot(long lastIncludedIndex, long lastIncludedTerm, byte[] stateData) throws IOException {
+        return snapshotWriter.writeSnapshot(lastIncludedIndex, lastIncludedTerm, stateData);
+    }
+
+    public Optional<SnapshotReader.SnapshotReadResult> readLatestSnapshot() throws IOException {
+        return snapshotReader.readLatestSnapshot();
+    }
+
     /**
-     * Executes recovery and creates a durable Raft log populated with recovered state.
+     * Executes recovery and creates a durable Raft log populated with recovered state and snapshots.
      */
     public DurableRecovery recoverAndCreateLog() throws IOException {
         RecoveryResult result = recoveryManager.recover();
 
-        // Populate index from recovered entries
-        DurableRaftLog log = new DurableRaftLog(walWriter, storageIndex, result.replayedEntries());
+        // Reconstruct log starting with snapshot baseline if present
+        DurableRaftLog log = new DurableRaftLog(
+                walWriter,
+                storageIndex,
+                result.replayedEntries(),
+                result.snapshotIndex(),
+                result.snapshotTerm()
+        );
         return new DurableRecovery(result, log);
     }
 

@@ -9,8 +9,10 @@ import java.nio.file.Path;
  */
 public interface SnapshotWriter extends Closeable {
 
+    record SnapshotWriteResult(long lastIncludedIndex, long lastIncludedTerm, Path path) {}
+
     /**
      * Writes snapshot data for the given snapshot metadata.
      */
-    Path writeSnapshot(long lastIncludedIndex, long lastIncludedTerm, byte[] stateMachineData) throws IOException;
+    SnapshotWriteResult writeSnapshot(long lastIncludedIndex, long lastIncludedTerm, byte[] stateMachineData) throws IOException;
 }

@@ -3,6 +3,8 @@ package se.mouaz.aegisdb.transport;
 import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.protocol.AppendEntriesRequest;
 import se.mouaz.aegisdb.protocol.AppendEntriesResponse;
+import se.mouaz.aegisdb.protocol.InstallSnapshotRequest;
+import se.mouaz.aegisdb.protocol.InstallSnapshotResponse;
 import se.mouaz.aegisdb.protocol.RequestVoteRequest;
 import se.mouaz.aegisdb.protocol.RequestVoteResponse;
 
@@ -13,6 +15,7 @@ public interface RaftTransport extends AutoCloseable {
     NodeId localNodeId();
     CompletableFuture<RequestVoteResponse> requestVote(NodeId destination, RequestVoteRequest request);
     CompletableFuture<AppendEntriesResponse> appendEntries(NodeId destination, AppendEntriesRequest request);
+    CompletableFuture<InstallSnapshotResponse> installSnapshot(NodeId destination, InstallSnapshotRequest request);
     void registerHandler(RaftRequestHandler handler);
     void start() throws IOException;
     void stop();

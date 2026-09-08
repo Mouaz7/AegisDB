@@ -4,10 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.mouaz.aegisdb.common.ClusterConfiguration;
 import se.mouaz.aegisdb.common.NodeId;
-import se.mouaz.aegisdb.protocol.AppendEntriesRequest;
-import se.mouaz.aegisdb.protocol.AppendEntriesResponse;
-import se.mouaz.aegisdb.protocol.RequestVoteRequest;
-import se.mouaz.aegisdb.protocol.RequestVoteResponse;
+import se.mouaz.aegisdb.protocol.*;
 import se.mouaz.aegisdb.raft.election.ElectionManager;
 import se.mouaz.aegisdb.raft.election.ElectionTimer;
 import se.mouaz.aegisdb.raft.election.RequestVoteHandler;
@@ -15,9 +12,14 @@ import se.mouaz.aegisdb.raft.event.*;
 import se.mouaz.aegisdb.raft.heartbeat.AppendEntriesHandler;
 import se.mouaz.aegisdb.raft.heartbeat.HeartbeatManager;
 import se.mouaz.aegisdb.raft.log.RaftLog;
+import se.mouaz.aegisdb.raft.log.RaftLogEntry;
 import se.mouaz.aegisdb.raft.replication.CommitIndexManager;
 import se.mouaz.aegisdb.raft.replication.LogConflictResolver;
 import se.mouaz.aegisdb.raft.replication.ReplicationManager;
+import se.mouaz.aegisdb.raft.snapshot.SnapshotManager;
+import se.mouaz.aegisdb.raft.statemachine.KeyValueStateMachine;
+import se.mouaz.aegisdb.raft.statemachine.KvCommand;
+import se.mouaz.aegisdb.raft.statemachine.StateMachine;
 import se.mouaz.aegisdb.raft.state.PersistentRaftState;
 import se.mouaz.aegisdb.raft.state.RaftRole;
 import se.mouaz.aegisdb.raft.state.RaftState;
@@ -61,6 +63,8 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
     private final RequestVoteHandler requestVoteHandler;
     private final HeartbeatManager heartbeatManager;
     private final AppendEntriesHandler appendEntriesHandler;
+    private final StateMachine stateMachine;
+    private final SnapshotManager snapshotManager;
 
     // Single-ordered event queue executor per Raft node (Section 107)
     private final ExecutorService eventExecutor;
@@ -71,6 +75,8 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                     RaftTransport transport,
                     PersistentRaftState persistentState,
                     RaftLog raftLog,
+                    StateMachine stateMachine,
+                    SnapshotManager snapshotManager,
                     Clock clock,
                     Scheduler scheduler,
                     Duration minElectionTimeout,
@@ -88,6 +94,14 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
         this.raftLog = raftLog != null ? raftLog : new RaftLog();
         this.conflictResolver = new LogConflictResolver();
         this.commitIndexManager = new CommitIndexManager();
+
+        this.stateMachine = stateMachine != null ? stateMachine : new KeyValueStateMachine();
+        this.snapshotManager = snapshotManager != null ? snapshotManager : new SnapshotManager(
+                this.stateMachine,
+                this.raftLog,
+                null,
+                this::onSnapshotInstalled
+        );
 
         this.eventExecutor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "raft-event-loop-" + nodeId.value());
@@ -115,6 +129,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                 commitIndexManager,
                 this::postEvent
         );
+        this.replicationManager.setSnapshotManager(this.snapshotManager);
 
         // 3. Heartbeat Manager
         this.heartbeatManager = new HeartbeatManager(
@@ -167,6 +182,21 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                     ClusterConfiguration clusterConfig,
                     RaftTransport transport,
                     PersistentRaftState persistentState,
+                    RaftLog raftLog,
+                    Clock clock,
+                    Scheduler scheduler,
+                    Duration minElectionTimeout,
+                    Duration maxElectionTimeout,
+                    Duration heartbeatInterval,
+                    Random random) {
+        this(nodeId, clusterConfig, transport, persistentState, raftLog, null, null,
+                clock, scheduler, minElectionTimeout, maxElectionTimeout, heartbeatInterval, random);
+    }
+
+    public RaftNode(NodeId nodeId,
+                    ClusterConfiguration clusterConfig,
+                    RaftTransport transport,
+                    PersistentRaftState persistentState,
                     Clock clock,
                     Scheduler scheduler,
                     Duration minElectionTimeout,
@@ -175,6 +205,34 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                     Random random) {
         this(nodeId, clusterConfig, transport, persistentState, null, clock, scheduler,
                 minElectionTimeout, maxElectionTimeout, heartbeatInterval, random);
+    }
+
+    private synchronized void onSnapshotInstalled(long lastIncludedIndex, long lastIncludedTerm) {
+        state.volatileState().setCommitIndex(Math.max(state.volatileState().commitIndex(), lastIncludedIndex));
+        state.volatileState().setLastApplied(Math.max(state.volatileState().lastApplied(), lastIncludedIndex));
+        log.info("Node {}: Snapshot installed at index={}, term={}. Updated commitIndex={}, lastApplied={}",
+                nodeId, lastIncludedIndex, lastIncludedTerm, state.volatileState().commitIndex(), state.volatileState().lastApplied());
+    }
+
+    public synchronized void applyCommittedEntries() {
+        if (stateMachine == null) {
+            return;
+        }
+        long commit = state.volatileState().commitIndex();
+        long applied = state.volatileState().lastApplied();
+        if (applied < raftLog.snapshotIndex()) {
+            applied = raftLog.snapshotIndex();
+            state.volatileState().setLastApplied(applied);
+        }
+        while (applied < commit) {
+            applied++;
+            Optional<RaftLogEntry> entryOpt = raftLog.getEntry(applied);
+            if (entryOpt.isPresent()) {
+                RaftLogEntry entry = entryOpt.get();
+                stateMachine.apply(entry.index(), entry.data());
+            }
+            state.volatileState().setLastApplied(applied);
+        }
     }
 
     public static Builder builder() {
@@ -262,6 +320,14 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
         return clock;
     }
 
+    public StateMachine stateMachine() {
+        return stateMachine;
+    }
+
+    public SnapshotManager snapshotManager() {
+        return snapshotManager;
+    }
+
     /**
      * Proposes a new command to be replicated by Raft (Section 83; US006).
      * If this node is the leader, appends entry and replicates to majority before completing future.
@@ -271,7 +337,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
             return CompletableFuture.failedFuture(TransportException.nodeStopped("Node " + nodeId + " is stopped"));
         }
         if (state.role() != RaftRole.LEADER) {
-            return CompletableFuture.failedFuture(new NotLeaderException(state.currentLeader().orElse(null)));
+            return CompletableFuture.failedFuture(new NotLeaderException(state.currentLeader().orElse(null), state.currentTerm()));
         }
         CompletableFuture<Long> future = new CompletableFuture<>();
         postEvent(new ClientWriteEvent(command, future));
@@ -283,6 +349,29 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
      */
     public CompletableFuture<Long> replicate(byte[] command) {
         return propose(command);
+    }
+
+    /**
+     * Executes a client command against the state machine, waiting for commit and applying (Sprint 5; US009, US010).
+     */
+    public CompletableFuture<byte[]> executeClientCommand(byte[] command) {
+        if (!running.get()) {
+            return CompletableFuture.failedFuture(TransportException.nodeStopped("Node " + nodeId + " is stopped"));
+        }
+        if (state.role() != RaftRole.LEADER) {
+            return CompletableFuture.failedFuture(new NotLeaderException(state.currentLeader().orElse(null), state.currentTerm()));
+        }
+        CompletableFuture<byte[]> future = new CompletableFuture<>();
+        postEvent(new ClientCommandEvent(command, future));
+        return future;
+    }
+
+    public synchronized byte[] takeSnapshot(long lastIncludedIndex, long lastIncludedTerm) {
+        return snapshotManager.takeSnapshot(lastIncludedIndex, lastIncludedTerm);
+    }
+
+    public synchronized byte[] takeSnapshot() {
+        return takeSnapshot(commitIndex(), raftLog.getTerm(commitIndex()));
     }
 
     // --- RaftRequestHandler Overrides (Inbound RPCs from Transport) ---
@@ -307,6 +396,16 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
         return future;
     }
 
+    @Override
+    public CompletableFuture<InstallSnapshotResponse> handleInstallSnapshot(InstallSnapshotRequest request) {
+        if (!running.get()) {
+            return CompletableFuture.failedFuture(TransportException.nodeStopped("Node " + nodeId + " is stopped"));
+        }
+        CompletableFuture<InstallSnapshotResponse> future = new CompletableFuture<>();
+        postEvent(new InstallSnapshotEvent(request, future));
+        return future;
+    }
+
     // --- Event Queue Dispatcher (Section 107) ---
 
     public void postEvent(RaftEvent event) {
@@ -317,6 +416,10 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                 app.future().completeExceptionally(TransportException.nodeStopped("Node is stopped"));
             } else if (event instanceof ClientWriteEvent write) {
                 write.future().completeExceptionally(TransportException.nodeStopped("Node is stopped"));
+            } else if (event instanceof InstallSnapshotEvent snap) {
+                snap.future().completeExceptionally(TransportException.nodeStopped("Node is stopped"));
+            } else if (event instanceof ClientCommandEvent cmd) {
+                cmd.future().completeExceptionally(TransportException.nodeStopped("Node is stopped"));
             }
             return;
         }
@@ -336,7 +439,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
             RequestVoteResponse response = requestVoteHandler.handleRequestVote(req.request());
             if (roleBefore == RaftRole.LEADER && state.role() == RaftRole.FOLLOWER) {
                 heartbeatManager.stopHeartbeats();
-                replicationManager.failPendingFutures(new NotLeaderException(state.currentLeader().orElse(null)));
+                replicationManager.failPendingFutures(new NotLeaderException(state.currentLeader().orElse(null), state.currentTerm()));
             }
             req.future().complete(response);
         } else if (event instanceof VoteResponseEvent voteResp) {
@@ -346,8 +449,9 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
             AppendEntriesResponse response = appendEntriesHandler.handleAppendEntries(app.request());
             if (roleBefore == RaftRole.LEADER && state.role() == RaftRole.FOLLOWER) {
                 heartbeatManager.stopHeartbeats();
-                replicationManager.failPendingFutures(new NotLeaderException(state.currentLeader().orElse(null)));
+                replicationManager.failPendingFutures(new NotLeaderException(state.currentLeader().orElse(null), state.currentTerm()));
             }
+            applyCommittedEntries();
             app.future().complete(response);
         } else if (event instanceof AppendEntriesResponseEvent appResp) {
             if (appResp.response().term() > state.currentTerm()) {
@@ -355,13 +459,47 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                         nodeId, appResp.response().term(), appResp.fromNode());
                 state.becomeFollower(appResp.response().term(), null);
                 heartbeatManager.stopHeartbeats();
-                replicationManager.failPendingFutures(new NotLeaderException(null));
+                replicationManager.failPendingFutures(new NotLeaderException(null, appResp.response().term()));
                 electionTimer.reset();
             } else if (state.role() == RaftRole.LEADER) {
                 replicationManager.handleAppendEntriesResponse(appResp.fromNode(), appResp.response());
+                applyCommittedEntries();
+            }
+        } else if (event instanceof InstallSnapshotEvent snapEvent) {
+            RaftRole roleBefore = state.role();
+            InstallSnapshotResponse response = snapshotManager.handleInstallSnapshot(snapEvent.request(), state.currentTerm());
+            if (snapEvent.request().term() > state.currentTerm()) {
+                log.info("Node {} stepping down to follower: higher term {} in InstallSnapshot from {}",
+                        nodeId, snapEvent.request().term(), snapEvent.request().leaderId());
+                state.becomeFollower(snapEvent.request().term(), snapEvent.request().leaderId());
+                heartbeatManager.stopHeartbeats();
+                replicationManager.failPendingFutures(new NotLeaderException(snapEvent.request().leaderId(), snapEvent.request().term()));
+                electionTimer.reset();
+            } else if (snapEvent.request().term() == state.currentTerm() && state.role() == RaftRole.CANDIDATE) {
+                state.becomeFollower(snapEvent.request().term(), snapEvent.request().leaderId());
+                electionTimer.reset();
+            } else if (snapEvent.request().term() == state.currentTerm()) {
+                state.setCurrentLeader(snapEvent.request().leaderId());
+                electionTimer.reset();
+            }
+            applyCommittedEntries();
+            snapEvent.future().complete(response);
+        } else if (event instanceof InstallSnapshotResponseEvent snapResp) {
+            if (snapResp.response().term() > state.currentTerm()) {
+                log.info("Leader {} stepping down: peer returned higher term {} on InstallSnapshot",
+                        nodeId, snapResp.response().term());
+                state.becomeFollower(snapResp.response().term(), null);
+                heartbeatManager.stopHeartbeats();
+                replicationManager.failPendingFutures(new NotLeaderException(null, snapResp.response().term()));
+                electionTimer.reset();
+            } else if (state.role() == RaftRole.LEADER) {
+                replicationManager.handleInstallSnapshotResponse(snapResp.fromNode(), snapResp.response(), snapResp.snapshotIndex());
+                applyCommittedEntries();
             }
         } else if (event instanceof ClientWriteEvent writeEvent) {
             replicationManager.propose(writeEvent.command(), writeEvent.future());
+        } else if (event instanceof ClientCommandEvent cmdEvent) {
+            executeClientCommandOnEventLoop(cmdEvent.command(), cmdEvent.future());
         } else if (event instanceof ElectionTimeoutEvent timeout) {
             if (state.role() != RaftRole.LEADER) {
                 log.info("Node {} triggered election timeout for term {}", nodeId, state.currentTerm());
@@ -372,6 +510,55 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                 heartbeatManager.sendHeartbeats();
             }
         }
+    }
+
+    private void executeClientCommandOnEventLoop(byte[] command, CompletableFuture<byte[]> future) {
+        if (state.role() != RaftRole.LEADER) {
+            future.completeExceptionally(new NotLeaderException(state.currentLeader().orElse(null), state.currentTerm()));
+            return;
+        }
+
+        // Fast path for read-only GET queries against applied state
+        try {
+            KvCommand kvCmd = KvCommand.fromBytes(command);
+            if (kvCmd.opType() == KvCommand.OpType.GET) {
+                applyCommittedEntries();
+                if (stateMachine instanceof KeyValueStateMachine kvSm) {
+                    byte[] val = kvSm.get(kvCmd.key());
+                    future.complete(val != null ? val : new byte[0]);
+                    return;
+                }
+            }
+        } catch (Exception ignored) {
+            // Replicate as normal command
+        }
+
+        CompletableFuture<Long> replicationFuture = new CompletableFuture<>();
+        replicationManager.propose(command, replicationFuture);
+        replicationFuture.whenComplete((index, ex) -> {
+            if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                eventExecutor.execute(() -> {
+                    try {
+                        applyCommittedEntries();
+                        if (stateMachine instanceof KeyValueStateMachine kvSm) {
+                            try {
+                                KvCommand kvCmd = KvCommand.fromBytes(command);
+                                if (kvCmd.opType() == KvCommand.OpType.GET) {
+                                    byte[] val = kvSm.get(kvCmd.key());
+                                    future.complete(val != null ? val : new byte[0]);
+                                    return;
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                        future.complete(new byte[0]);
+                    } catch (Exception e) {
+                        future.completeExceptionally(e);
+                    }
+                });
+            }
+        });
     }
 
     @Override
@@ -387,6 +574,8 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
         private RaftTransport transport;
         private PersistentRaftState persistentState;
         private RaftLog raftLog;
+        private StateMachine stateMachine;
+        private SnapshotManager snapshotManager;
         private Clock clock;
         private Scheduler scheduler;
         private Duration minElectionTimeout = Duration.ofMillis(150);
@@ -416,6 +605,16 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
 
         public Builder raftLog(RaftLog raftLog) {
             this.raftLog = raftLog;
+            return this;
+        }
+
+        public Builder stateMachine(StateMachine stateMachine) {
+            this.stateMachine = stateMachine;
+            return this;
+        }
+
+        public Builder snapshotManager(SnapshotManager snapshotManager) {
+            this.snapshotManager = snapshotManager;
             return this;
         }
 
@@ -452,6 +651,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
         public RaftNode build() {
             return new RaftNode(
                     nodeId, clusterConfig, transport, persistentState, raftLog,
+                    stateMachine, snapshotManager,
                     clock, scheduler, minElectionTimeout, maxElectionTimeout,
                     heartbeatInterval, random
             );

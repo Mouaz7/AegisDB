@@ -9,6 +9,9 @@ import se.mouaz.aegisdb.storage.metadata.RaftMetadataStorage;
 import se.mouaz.aegisdb.storage.wal.StorageRecord;
 import se.mouaz.aegisdb.storage.wal.WalManager;
 
+import se.mouaz.aegisdb.storage.snapshot.FileSnapshotReader;
+import se.mouaz.aegisdb.storage.snapshot.SnapshotReader;
+
 import java.io.IOException;
 import java.util.*;
 
@@ -27,14 +30,24 @@ public class RecoveryManager {
 
     private final RaftMetadataStorage metadataStorage;
     private final WalRecoveryManager walRecoveryManager;
+    private final FileSnapshotReader snapshotReader;
 
     public RecoveryManager(RaftMetadataStorage metadataStorage, WalManager walManager) {
+        this(metadataStorage, walManager, null);
+    }
+
+    public RecoveryManager(RaftMetadataStorage metadataStorage, WalManager walManager, FileSnapshotReader snapshotReader) {
         this.metadataStorage = Objects.requireNonNull(metadataStorage, "metadataStorage cannot be null");
         this.walRecoveryManager = new WalRecoveryManager(Objects.requireNonNull(walManager, "walManager cannot be null"));
+        this.snapshotReader = snapshotReader;
     }
 
     public WalRecoveryManager walRecoveryManager() {
         return walRecoveryManager;
+    }
+
+    public FileSnapshotReader snapshotReader() {
+        return snapshotReader;
     }
 
     /**
@@ -50,20 +63,41 @@ public class RecoveryManager {
         NodeId recoveredVotedFor = metaOpt.map(PersistentRaftMetadata::votedFor).orElse(null);
         log.info("1/5: Loaded persistent Raft metadata: term={}, votedFor={}", recoveredTerm, recoveredVotedFor);
 
-        // 2. Load latest valid snapshot (Sprint 5 preparation)
-        log.info("2/5: Checking snapshots (Sprint 5 snapshot store)...");
+        // 2. Load latest valid snapshot (Sprint 5)
+        long snapshotIndex = 0L;
+        long snapshotTerm = 0L;
+        byte[] snapshotData = null;
+        if (snapshotReader != null) {
+            Optional<SnapshotReader.SnapshotReadResult> snapOpt = snapshotReader.readLatestSnapshot();
+            if (snapOpt.isPresent()) {
+                SnapshotReader.SnapshotReadResult snap = snapOpt.get();
+                snapshotIndex = snap.metadata().lastIncludedIndex();
+                snapshotTerm = snap.metadata().lastIncludedTerm();
+                snapshotData = snap.data();
+                log.info("2/5: Loaded latest valid snapshot: index={}, term={}, dataLen={}",
+                        snapshotIndex, snapshotTerm, snapshotData.length);
+            } else {
+                log.info("2/5: No valid snapshot found on disk.");
+            }
+        } else {
+            log.info("2/5: Snapshot reader not configured.");
+        }
 
         // 3 & 4. Scan WAL segments, validate checksums, and stop safely at incomplete tail
         log.info("3/5: Scanning WAL segments and validating record framing...");
         WalRecoveryManager.WalScanResult scanResult = walRecoveryManager.scanAndRecover();
 
-        // 5. Replay valid records to reconstruct Raft log entries
+        // 5. Replay valid records to reconstruct Raft log entries starting after snapshotIndex
         log.info("4/5: Replaying valid records to reconstruct consensus log state...");
         List<RaftLogEntry> replayedEntries = new ArrayList<>();
-        long lastIndex = 0L;
-        long lastTerm = 0L;
+        long lastIndex = snapshotIndex;
+        long lastTerm = snapshotTerm;
 
         for (StorageRecord record : scanResult.records()) {
+            if (record.sequenceNumber() <= snapshotIndex) {
+                // Entry already incorporated in snapshot
+                continue;
+            }
             if (record.recordType() == StorageRecord.TYPE_DATA) {
                 // If value exists, use value; else if key exists, use key
                 byte[] data = record.value();
@@ -80,15 +114,15 @@ public class RecoveryManager {
                     lastIndex = last.index();
                     lastTerm = last.term();
                 } else {
-                    lastIndex = 0L;
-                    lastTerm = 0L;
+                    lastIndex = snapshotIndex;
+                    lastTerm = snapshotTerm;
                 }
             }
         }
 
         long duration = System.currentTimeMillis() - startTime;
-        log.info("5/5: Recovery sequence completed in {} ms. LastLogIndex={}, LastLogTerm={}, Entries={}",
-                duration, lastIndex, lastTerm, replayedEntries.size());
+        log.info("5/5: Recovery sequence completed in {} ms. LastLogIndex={}, LastLogTerm={}, Entries={}, SnapshotIndex={}",
+                duration, lastIndex, lastTerm, replayedEntries.size(), snapshotIndex);
 
         return new RecoveryResult(
                 recoveredTerm,
@@ -97,7 +131,10 @@ public class RecoveryManager {
                 lastTerm,
                 Collections.unmodifiableList(replayedEntries),
                 scanResult.tornTailsRepairedCount(),
-                duration
+                duration,
+                snapshotIndex,
+                snapshotTerm,
+                snapshotData
         );
     }
 }

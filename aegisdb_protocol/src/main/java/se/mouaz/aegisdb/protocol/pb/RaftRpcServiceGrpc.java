@@ -61,6 +61,27 @@ public final class RaftRpcServiceGrpc {
         return method;
     }
 
+    private static volatile MethodDescriptor<InstallSnapshotArgs, InstallSnapshotReply> getInstallSnapshotMethod;
+
+    public static MethodDescriptor<InstallSnapshotArgs, InstallSnapshotReply> getInstallSnapshotMethod() {
+        MethodDescriptor<InstallSnapshotArgs, InstallSnapshotReply> method = getInstallSnapshotMethod;
+        if (method == null) {
+            synchronized (RaftRpcServiceGrpc.class) {
+                method = getInstallSnapshotMethod;
+                if (method == null) {
+                    getInstallSnapshotMethod = method = MethodDescriptor.<InstallSnapshotArgs, InstallSnapshotReply>newBuilder()
+                            .setType(MethodDescriptor.MethodType.UNARY)
+                            .setFullMethodName(generateFullMethodName(SERVICE_NAME, "InstallSnapshot"))
+                            .setSampledToLocalTracing(true)
+                            .setRequestMarshaller(ProtoUtils.marshaller(InstallSnapshotArgs.getDefaultInstance()))
+                            .setResponseMarshaller(ProtoUtils.marshaller(InstallSnapshotReply.getDefaultInstance()))
+                            .build();
+                }
+            }
+        }
+        return method;
+    }
+
     public static RaftRpcServiceStub newStub(Channel channel) {
         return new RaftRpcServiceStub(channel);
     }
@@ -74,17 +95,25 @@ public final class RaftRpcServiceGrpc {
             ServerCalls.asyncUnimplementedUnaryCall(getAppendEntriesMethod(), responseObserver);
         }
 
+        public void installSnapshot(InstallSnapshotArgs request, StreamObserver<InstallSnapshotReply> responseObserver) {
+            ServerCalls.asyncUnimplementedUnaryCall(getInstallSnapshotMethod(), responseObserver);
+        }
+
         @Override
         public ServerServiceDefinition bindService() {
             return ServerServiceDefinition.builder(SERVICE_NAME)
                     .addMethod(
                             getRequestVoteMethod(),
                             ServerCalls.asyncUnaryCall(
-                                    (req, observer) -> requestVote(req, observer)))
+                                     (req, observer) -> requestVote(req, observer)))
                     .addMethod(
                             getAppendEntriesMethod(),
                             ServerCalls.asyncUnaryCall(
-                                    (req, observer) -> appendEntries(req, observer)))
+                                     (req, observer) -> appendEntries(req, observer)))
+                    .addMethod(
+                            getInstallSnapshotMethod(),
+                            ServerCalls.asyncUnaryCall(
+                                     (req, observer) -> installSnapshot(req, observer)))
                     .build();
         }
     }
@@ -111,6 +140,11 @@ public final class RaftRpcServiceGrpc {
         public void appendEntries(AppendEntriesArgs request, StreamObserver<AppendEntriesReply> responseObserver) {
             ClientCalls.asyncUnaryCall(
                     getChannel().newCall(getAppendEntriesMethod(), getCallOptions()), request, responseObserver);
+        }
+
+        public void installSnapshot(InstallSnapshotArgs request, StreamObserver<InstallSnapshotReply> responseObserver) {
+            ClientCalls.asyncUnaryCall(
+                    getChannel().newCall(getInstallSnapshotMethod(), getCallOptions()), request, responseObserver);
         }
     }
 }

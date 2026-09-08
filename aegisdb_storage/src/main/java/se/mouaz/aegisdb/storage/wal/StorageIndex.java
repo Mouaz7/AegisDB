@@ -57,6 +57,16 @@ public class StorageIndex {
         indexMap.tailMap(fromIndex, true).clear();
     }
 
+    /**
+     * Purges index entries strictly less than upToSequenceNumber (used after snapshot compaction).
+     */
+    public void purgeBefore(long upToSequenceNumber) {
+        if (upToSequenceNumber <= 0) {
+            return;
+        }
+        indexMap.headMap(upToSequenceNumber, false).clear();
+    }
+
     public void clear() {
         indexMap.clear();
     }

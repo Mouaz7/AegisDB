@@ -25,13 +25,21 @@ public class DurableRaftLog extends RaftLog implements RaftLogRepository {
     private final StorageIndex storageIndex;
 
     public DurableRaftLog(WalWriter walWriter, StorageIndex storageIndex) {
-        super();
+        this(walWriter, storageIndex, 0L, 0L);
+    }
+
+    public DurableRaftLog(WalWriter walWriter, StorageIndex storageIndex, long snapshotIndex, long snapshotTerm) {
+        super(snapshotIndex, snapshotTerm);
         this.walWriter = Objects.requireNonNull(walWriter, "walWriter cannot be null");
         this.storageIndex = storageIndex != null ? storageIndex : new StorageIndex();
     }
 
     public DurableRaftLog(WalWriter walWriter, StorageIndex storageIndex, List<RaftLogEntry> initialRecoveredEntries) {
-        this(walWriter, storageIndex);
+        this(walWriter, storageIndex, initialRecoveredEntries, 0L, 0L);
+    }
+
+    public DurableRaftLog(WalWriter walWriter, StorageIndex storageIndex, List<RaftLogEntry> initialRecoveredEntries, long snapshotIndex, long snapshotTerm) {
+        this(walWriter, storageIndex, snapshotIndex, snapshotTerm);
         if (initialRecoveredEntries != null) {
             for (RaftLogEntry entry : initialRecoveredEntries) {
                 super.append(entry);
@@ -105,5 +113,16 @@ public class DurableRaftLog extends RaftLog implements RaftLogRepository {
     @Override
     public synchronized void truncateFrom(long fromIndex) {
         truncateFrom(fromIndex, 0L);
+    }
+
+    @Override
+    public synchronized void compactUpTo(long newSnapshotIndex, long newSnapshotTerm) {
+        super.compactUpTo(newSnapshotIndex, newSnapshotTerm);
+        try {
+            storageIndex.purgeBefore(newSnapshotIndex);
+            walWriter.walManager().purgeSegmentsPriorTo(newSnapshotIndex, storageIndex);
+        } catch (IOException e) {
+            log.error("Failed to purge WAL segments prior to index {}", newSnapshotIndex, e);
+        }
     }
 }

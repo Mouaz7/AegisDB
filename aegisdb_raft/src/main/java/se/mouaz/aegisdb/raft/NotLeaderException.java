@@ -11,13 +11,23 @@ import java.util.Optional;
  */
 public class NotLeaderException extends DatabaseException {
     private final NodeId currentLeader;
+    private final long currentTerm;
+
+    public NotLeaderException(NodeId currentLeader, long currentTerm) {
+        super(ErrorCode.NOT_LEADER, "Node is not the leader. Current leader: " + (currentLeader != null ? currentLeader : "unknown") + ", term: " + currentTerm);
+        this.currentLeader = currentLeader;
+        this.currentTerm = currentTerm;
+    }
 
     public NotLeaderException(NodeId currentLeader) {
-        super(ErrorCode.NOT_LEADER, "Node is not the leader. Current leader: " + (currentLeader != null ? currentLeader : "unknown"));
-        this.currentLeader = currentLeader;
+        this(currentLeader, 0L);
     }
 
     public Optional<NodeId> currentLeader() {
         return Optional.ofNullable(currentLeader);
+    }
+
+    public long currentTerm() {
+        return currentTerm;
     }
 }

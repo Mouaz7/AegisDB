@@ -8,6 +8,8 @@ import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.common.NodeStatus;
 import se.mouaz.aegisdb.protocol.AppendEntriesRequest;
 import se.mouaz.aegisdb.protocol.AppendEntriesResponse;
+import se.mouaz.aegisdb.protocol.InstallSnapshotRequest;
+import se.mouaz.aegisdb.protocol.InstallSnapshotResponse;
 import se.mouaz.aegisdb.protocol.RequestVoteRequest;
 import se.mouaz.aegisdb.protocol.RequestVoteResponse;
 import se.mouaz.aegisdb.raft.RaftNode;
@@ -134,6 +136,27 @@ public class DatabaseNode implements NodeLifecycle, RaftRequestHandler {
         return context.transport().appendEntries(destination, request);
     }
 
+    public CompletableFuture<byte[]> executeClientCommand(byte[] command) {
+        if (raftNode != null) {
+            return raftNode.executeClientCommand(command);
+        }
+        return CompletableFuture.failedFuture(new IllegalStateException("RaftNode is not initialized on node " + nodeId()));
+    }
+
+    public byte[] takeSnapshot() {
+        if (raftNode != null) {
+            return raftNode.takeSnapshot();
+        }
+        throw new IllegalStateException("RaftNode is not initialized on node " + nodeId());
+    }
+
+    public byte[] takeSnapshot(long lastIncludedIndex, long lastIncludedTerm) {
+        if (raftNode != null) {
+            return raftNode.takeSnapshot(lastIncludedIndex, lastIncludedTerm);
+        }
+        throw new IllegalStateException("RaftNode is not initialized on node " + nodeId());
+    }
+
     @Override
     public CompletableFuture<RequestVoteResponse> handleRequestVote(RequestVoteRequest request) {
         if (raftNode != null) {
@@ -150,5 +173,14 @@ public class DatabaseNode implements NodeLifecycle, RaftRequestHandler {
         }
         log.debug("Node {} received AppendEntries from leader {}", nodeId(), request.leaderId());
         return CompletableFuture.completedFuture(AppendEntriesResponse.success(request.term(), 1));
+    }
+
+    @Override
+    public CompletableFuture<InstallSnapshotResponse> handleInstallSnapshot(InstallSnapshotRequest request) {
+        if (raftNode != null) {
+            return raftNode.handleInstallSnapshot(request);
+        }
+        log.debug("Node {} received InstallSnapshot from leader {}", nodeId(), request.leaderId());
+        return CompletableFuture.completedFuture(new InstallSnapshotResponse(request.term(), true));
     }
 }

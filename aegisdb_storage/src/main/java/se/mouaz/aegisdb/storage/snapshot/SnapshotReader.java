@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface SnapshotReader extends Closeable {
 
     record SnapshotMetadata(long lastIncludedIndex, long lastIncludedTerm, long checksum, Path path) {}
+    record SnapshotReadResult(SnapshotMetadata metadata, byte[] data) {}
 
     /**
      * Loads the latest valid snapshot metadata if present.
@@ -21,4 +22,14 @@ public interface SnapshotReader extends Closeable {
      * Reads snapshot payload bytes.
      */
     byte[] readSnapshotData(Path snapshotPath) throws IOException;
+
+    default Optional<SnapshotReadResult> readLatestSnapshot() throws IOException {
+        Optional<SnapshotMetadata> metaOpt = loadLatestSnapshotMetadata();
+        if (metaOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        SnapshotMetadata meta = metaOpt.get();
+        byte[] data = readSnapshotData(meta.path());
+        return Optional.of(new SnapshotReadResult(meta, data));
+    }
 }

@@ -33,13 +33,13 @@ private static final long serialVersionUID = 0L;
   }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
-    return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_jdistdb_protocol_RequestVoteReply_descriptor;
+    return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_aegisdb_protocol_RequestVoteReply_descriptor;
   }
 
   @java.lang.Override
   protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
       internalGetFieldAccessorTable() {
-    return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_jdistdb_protocol_RequestVoteReply_fieldAccessorTable
+    return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_aegisdb_protocol_RequestVoteReply_fieldAccessorTable
         .ensureFieldAccessorsInitialized(
             se.mouaz.aegisdb.protocol.pb.RequestVoteReply.class, se.mouaz.aegisdb.protocol.pb.RequestVoteReply.Builder.class);
   }
@@ -292,13 +292,13 @@ private static final long serialVersionUID = 0L;
       se.mouaz.aegisdb.protocol.pb.RequestVoteReplyOrBuilder {
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
-      return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_jdistdb_protocol_RequestVoteReply_descriptor;
+      return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_aegisdb_protocol_RequestVoteReply_descriptor;
     }
 
     @java.lang.Override
     protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
-      return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_jdistdb_protocol_RequestVoteReply_fieldAccessorTable
+      return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_aegisdb_protocol_RequestVoteReply_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
               se.mouaz.aegisdb.protocol.pb.RequestVoteReply.class, se.mouaz.aegisdb.protocol.pb.RequestVoteReply.Builder.class);
     }
@@ -326,7 +326,7 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public com.google.protobuf.Descriptors.Descriptor
         getDescriptorForType() {
-      return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_jdistdb_protocol_RequestVoteReply_descriptor;
+      return se.mouaz.aegisdb.protocol.pb.RaftRpc.internal_static_se_mouaz_aegisdb_protocol_RequestVoteReply_descriptor;
     }
 
     @java.lang.Override

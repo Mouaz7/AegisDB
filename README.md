@@ -26,9 +26,11 @@ AegisDB/
 ├── aegisdb_common/           # Domänmodeller (NodeId, Endpoint, NodeStatus, Configs)
 ├── aegisdb_protocol/         # Protobuf-kontrakt och gRPC RPC-definitioner
 ├── aegisdb_transport/        # Transportabstraktion (InMemoryTransport, GrpcRaftTransport)
-├── aegisdb_raft/             # Raft Consensus Engine (Election, Heartbeats, State, Invariants)
+├── aegisdb_raft/             # Raft Consensus Engine (Election, Heartbeats, State, Invariants, Snapshots)
+├── aegisdb_storage/          # Disk-persistens, WAL, CRC32 Checksums, Snapshots & Återställning
 ├── aegisdb_node/             # Nodlivscykel (DatabaseNode, NodeBootstrap, NodeLifecycle)
-└── aegisdb_integration/      # Acceptanstester & verifieringsdemos för Sprint 1 och 2
+├── aegisdb_client/           # Java SDK Client (AegisDbClient, transparent redirect/retry)
+└── aegisdb_integration/      # Acceptanstester & verifieringsdemos för Sprint 1-5
 ```
 
 ---
@@ -121,6 +123,25 @@ Sprint 4 implementerar lokal feltolerant persistens och kraschåterställning en
 
 ---
 
+## Sprint 5: Snapshots and Replicated Key-Value Store (Milestone M2 Gate)
+
+Sprint 5 implementerar loggkompaktering via snapshots, InstallSnapshot RPC, en replikerad Key-Value State Machine samt klient-SDK (US009 & US010; Milestone M2 Gate):
+- **US009:** Som databasnod vill jag ha snapshots så loggen inte växer obegränsat.
+- **US010:** Som klient vill jag ha replikerade nyckel-värde operationer.
+
+### Uppfyllda Acceptanskriterier (Sprint 5)
+
+| Kriterium | Beskrivning | Status |
+|---|---|:---:|
+| **Snapshot metadata and checksum** | Punkt-i-tid snapshots (`snapshot-%020d-%020d.snap`) med Magic `0xAE615DA2`, version, framing och CRC32-checksummor över datat. Atomär `.tmp` + `ATOMIC_MOVE` och retention på 2 senaste snapshots. | ✅ PASS |
+| **Snapshot install** | Chunkad `InstallSnapshot` RPC över gRPC & InMemoryTransport med 64 KB chunking, offset, done-flagga och checksum-kontroll. | ✅ PASS |
+| **KeyValueStateMachine** | Trådsäker `ConcurrentSkipListMap`-baserad state machine med stöd för PUT, GET, DELETE samt deterministisk snapshot serialisering och återställning. | ✅ PASS |
+| **Client PUT/GET/DELETE** | Dedikerad Java SDK-modul `aegisdb_client` med `AegisDbClient` och `DefaultAegisDbClient`. Hanterar automatisk ledarupptäckt och transparent redirect vid `NotLeaderException`. | ✅ PASS |
+| **Follower catch-up from snapshot** | Eftersläpande eller frånkopplade noder vars saknade loggposter har kompakterats bort hämtas automatiskt in via `InstallSnapshot`. | ✅ PASS |
+| **Milestone M2 Gate** | 3-nods persistent replikerat nyckel-värde-kluster överlever ledarhaveri, genomför säkert omval, och låter klienter fortsätta läsa och skriva utan dataförlust. | ✅ PASS |
+
+---
+
 ## Bygg och Kör
 
 ### Förutsättningar
@@ -155,4 +176,10 @@ eller via skript:
 ```bash
 ./scripts/run-sprint4-demo.sh
 ```
+
+### Kör live-demonstration för Sprint 5 (Snapshots & Replicated KV Store / Milestone M2)
+```bash
+./scripts/run-sprint5-demo.sh
+```
+
 
