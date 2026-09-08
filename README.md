@@ -72,6 +72,30 @@ Sprint 2 implementerar Raft konsensusmotorns ledarval (US005) med single-threade
 
 ---
 
+## Sprint 3: Raft Consensus Engine - Log Replication
+
+Sprint 3 implementerar Raft-loggreplikering (US006) enligt Ongaro §5.3/§5.4 med strikt majoritetskvittering, commit-index-hantering och automatisk konfliktlösning:
+- **US006:** Som leader vill jag replikera writes till majority innan commit.
+
+### Uppfyllda Acceptanskriterier (Sprint 3)
+
+| Kriterium | Beskrivning | Status |
+|---|---|:---:|
+| **Writes replicate** | Ledaren tar emot klientskrivningar (`propose`), appendar till lokal `RaftLog` och sänder ut poster till följare. | ✅ PASS |
+| **Majority required** | Skrivningar committas först när en strikt majoritet ($N/2 + 1$) av noderna har kvitterat posten. Vid minoritetsisolation blockeras commit säkert. | ✅ PASS |
+| **CommitIndex advances correctly** | `commitIndex` ökar monotont enligt Ongaro §5.3/§5.4 (ledare committar poster från innevarande term). | ✅ PASS |
+| **Follower catches up** | En frånkopplad följare som återansluter mottar automatiskt alla saknade poster och synkroniseras upp till ledarens `commitIndex`. | ✅ PASS |
+| **Conflicting entries are repaired** | Divergerande, ocommittade poster i en följares logg trunkeras automatiskt och ersätts med ledarens auktoritativa poster via `LogConflictResolver`. | ✅ PASS |
+
+### Arkitektur & Säkerhetsinvarianter (Sprint 3)
+- **1-baserad loggindexering**: `RaftLog` använder 1-baserat sekvensnummer med sentinel-post på index 0.
+- **Single-Threaded Event Loop**: Klientskrivningar (`ClientWriteEvent`) och replikeringssvar (`AppendEntriesResponseEvent`) bearbetas uteslutande sekventiellt utan samtidiga lås.
+- **Section 75 Raft Invariants**: Automatiskt verifierade i körtid och tester:
+  - *Committed entries are never overwritten*
+  - *Committed entries appear in identical order across all nodes*
+
+---
+
 ## Bygg och Kör
 
 ### Förutsättningar
@@ -87,12 +111,17 @@ eller via skript:
 ./scripts/test-all.sh
 ```
 
-### Kör live-demonstration för Sprint 1
+### Kör live-demonstration för Sprint 1 (Nätverk & Noder)
 ```bash
 ./scripts/run-sprint1-demo.sh
 ```
 
-### Kör live-demonstration för Sprint 2 (Raft Leader Election)
+### Kör live-demonstration för Sprint 2 (Raft Ledarval)
 ```bash
 ./scripts/run-sprint2-demo.sh
+```
+
+### Kör live-demonstration för Sprint 3 (Raft Loggreplikering)
+```bash
+./scripts/run-sprint3-demo.sh
 ```

@@ -6,6 +6,8 @@ import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.protocol.AppendEntriesRequest;
 import se.mouaz.aegisdb.protocol.AppendEntriesResponse;
 import se.mouaz.aegisdb.raft.election.ElectionTimer;
+import se.mouaz.aegisdb.raft.log.RaftLog;
+import se.mouaz.aegisdb.raft.replication.LogConflictResolver;
 import se.mouaz.aegisdb.raft.state.RaftRole;
 import se.mouaz.aegisdb.raft.state.RaftState;
 
@@ -19,10 +21,21 @@ public class AppendEntriesHandler {
 
     private final RaftState state;
     private final ElectionTimer electionTimer;
+    private final RaftLog raftLog;
+    private final LogConflictResolver conflictResolver;
 
-    public AppendEntriesHandler(RaftState state, ElectionTimer electionTimer) {
+    public AppendEntriesHandler(RaftState state,
+                                ElectionTimer electionTimer,
+                                RaftLog raftLog,
+                                LogConflictResolver conflictResolver) {
         this.state = Objects.requireNonNull(state, "state cannot be null");
         this.electionTimer = electionTimer;
+        this.raftLog = raftLog != null ? raftLog : new RaftLog();
+        this.conflictResolver = conflictResolver != null ? conflictResolver : new LogConflictResolver();
+    }
+
+    public AppendEntriesHandler(RaftState state, ElectionTimer electionTimer) {
+        this(state, electionTimer, new RaftLog(), new LogConflictResolver());
     }
 
     public AppendEntriesResponse handleAppendEntries(AppendEntriesRequest request) {
@@ -57,6 +70,7 @@ public class AppendEntriesHandler {
             electionTimer.reset();
         }
 
-        return AppendEntriesResponse.success(currentTerm, 0L);
+        // 4. Delegate log consistency check, conflict resolution, and appending to LogConflictResolver (§5.3)
+        return conflictResolver.resolveAndAppend(raftLog, request, state.volatileState(), currentTerm);
     }
 }

@@ -66,7 +66,8 @@ public class HeartbeatManager {
 
         long term = state.currentTerm();
         NodeId localId = state.localNodeId();
-        AppendEntriesRequest heartbeat = AppendEntriesRequest.heartbeat(term, localId, 0, 0, 0);
+        long commitIndex = state.volatileState().commitIndex();
+        AppendEntriesRequest heartbeat = AppendEntriesRequest.heartbeat(term, localId, 0, 0, commitIndex);
 
         if (heartbeatSender != null) {
             heartbeatSender.accept(heartbeat);

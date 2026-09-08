@@ -31,6 +31,10 @@ public record ClusterConfiguration(
         return members.size();
     }
 
+    public int nodeCount() {
+        return clusterSize();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
