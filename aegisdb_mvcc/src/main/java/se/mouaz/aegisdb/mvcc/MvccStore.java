@@ -54,11 +54,14 @@ public class MvccStore {
     public static class ActiveTx {
         private final long txId;
         private final long startTimestamp;
-        private final Set<String> modifiedKeys = ConcurrentHashMap.newKeySet();
+        private final Set<Long> inFlightTxsAtStart;
+        final Set<String> modifiedKeys = ConcurrentHashMap.newKeySet();
+        private final ConcurrentMap<String, Long> readVersionTimestamps = new ConcurrentHashMap<>();
 
-        public ActiveTx(long txId, long startTimestamp) {
+        public ActiveTx(long txId, long startTimestamp, Set<Long> inFlightTxsAtStart) {
             this.txId = txId;
             this.startTimestamp = startTimestamp;
+            this.inFlightTxsAtStart = Collections.unmodifiableSet(new HashSet<>(inFlightTxsAtStart));
         }
 
         public long txId() {
@@ -69,8 +72,20 @@ public class MvccStore {
             return startTimestamp;
         }
 
+        public Set<Long> inFlightTxsAtStart() {
+            return inFlightTxsAtStart;
+        }
+
         public Set<String> modifiedKeys() {
             return Collections.unmodifiableSet(modifiedKeys);
+        }
+
+        public void recordRead(String key, long commitTimestamp) {
+            readVersionTimestamps.putIfAbsent(key, commitTimestamp);
+        }
+
+        public Long getReadVersionCommitTimestamp(String key) {
+            return readVersionTimestamps.get(key);
         }
     }
 
@@ -98,12 +113,15 @@ public class MvccStore {
      * Starts a new transaction, allocating a unique transaction ID and recording its start timestamp.
      */
     public long beginTransaction() {
-        long txId = txIdGenerator.incrementAndGet();
-        long startTimestamp = timestampProvider.nextTimestamp();
-        ActiveTx tx = new ActiveTx(txId, startTimestamp);
-        activeTransactions.put(txId, tx);
-        log.debug("Transaction {} started at logical timestamp {}", txId, startTimestamp);
-        return txId;
+        synchronized (commitLock) {
+            long txId = txIdGenerator.incrementAndGet();
+            long startTimestamp = timestampProvider.nextTimestamp();
+            Set<Long> inFlight = new HashSet<>(activeTransactions.keySet());
+            ActiveTx tx = new ActiveTx(txId, startTimestamp, inFlight);
+            activeTransactions.put(txId, tx);
+            log.debug("Transaction {} started at logical timestamp {}", txId, startTimestamp);
+            return txId;
+        }
     }
 
     /**
@@ -128,13 +146,13 @@ public class MvccStore {
      * @throws MvccException if the transaction is not active
      */
     public long commit(long txId) {
-        ActiveTx tx = activeTransactions.remove(txId);
-        if (tx == null) {
-            throw new MvccException("Transaction " + txId + " is not active or already finished");
-        }
-
         long commitTimestamp;
         synchronized (commitLock) {
+            ActiveTx tx = activeTransactions.get(txId);
+            if (tx == null) {
+                throw new MvccException("Transaction " + txId + " is not active or already finished");
+            }
+
             commitTimestamp = timestampProvider.nextTimestamp();
             for (String key : tx.modifiedKeys) {
                 VersionChain chain = chains.get(key);
@@ -142,9 +160,10 @@ public class MvccStore {
                     chain.commitVersion(txId, commitTimestamp);
                 }
             }
-        }
-        for (String key : tx.modifiedKeys) {
-            keyWriteLocks.remove(key, txId);
+            activeTransactions.remove(txId);
+            for (String key : tx.modifiedKeys) {
+                keyWriteLocks.remove(key, txId);
+            }
         }
 
         log.debug("Transaction {} committed at logical timestamp {}", txId, commitTimestamp);
@@ -158,25 +177,26 @@ public class MvccStore {
      * @return true if an active transaction was aborted, false otherwise
      */
     public boolean abort(long txId) {
-        ActiveTx tx = activeTransactions.remove(txId);
-        if (tx == null) {
-            return false;
-        }
-
         synchronized (commitLock) {
+            ActiveTx tx = activeTransactions.get(txId);
+            if (tx == null) {
+                return false;
+            }
+
             for (String key : tx.modifiedKeys) {
                 VersionChain chain = chains.get(key);
                 if (chain != null) {
                     chain.abortVersion(txId);
                 }
             }
-        }
-        for (String key : tx.modifiedKeys) {
-            keyWriteLocks.remove(key, txId);
-        }
+            activeTransactions.remove(txId);
+            for (String key : tx.modifiedKeys) {
+                keyWriteLocks.remove(key, txId);
+            }
 
-        log.debug("Transaction {} aborted and uncommitted versions rolled back", txId);
-        return true;
+            log.debug("Transaction {} aborted and uncommitted versions rolled back", txId);
+            return true;
+        }
     }
 
     // ==========================================
@@ -188,18 +208,20 @@ public class MvccStore {
      * The snapshot tracks currently in-flight transactions and registers with the active snapshot tracker.
      */
     public Snapshot createSnapshot() {
-        long snapshotId = snapshotIdGenerator.incrementAndGet();
-        long readTimestamp = timestampProvider.currentTimestamp();
-        Set<Long> activeTxs = Set.copyOf(activeTransactions.keySet());
-        activeSnapshots.put(snapshotId, readTimestamp);
+        synchronized (commitLock) {
+            long snapshotId = snapshotIdGenerator.incrementAndGet();
+            long readTimestamp = timestampProvider.currentTimestamp();
+            Set<Long> activeTxs = Set.copyOf(activeTransactions.keySet());
+            activeSnapshots.put(snapshotId, readTimestamp);
 
-        return new Snapshot(
-                snapshotId,
-                readTimestamp,
-                0L,
-                activeTxs,
-                () -> activeSnapshots.remove(snapshotId)
-        );
+            return new Snapshot(
+                    snapshotId,
+                    readTimestamp,
+                    0L,
+                    activeTxs,
+                    () -> activeSnapshots.remove(snapshotId)
+            );
+        }
     }
 
     /**
@@ -207,24 +229,25 @@ public class MvccStore {
      * Allows Read-Your-Own-Writes for this transaction while maintaining snapshot isolation for all others.
      */
     public Snapshot createSnapshotForTransaction(long txId) {
-        ActiveTx tx = activeTransactions.get(txId);
-        if (tx == null) {
-            throw new MvccException("Transaction " + txId + " is not active");
+        synchronized (commitLock) {
+            ActiveTx tx = activeTransactions.get(txId);
+            if (tx == null) {
+                throw new MvccException("Transaction " + txId + " is not active");
+            }
+
+            long snapshotId = snapshotIdGenerator.incrementAndGet();
+            long readTimestamp = tx.startTimestamp();
+            Set<Long> activeTxs = new HashSet<>(tx.inFlightTxsAtStart());
+            activeSnapshots.put(snapshotId, readTimestamp);
+
+            return new Snapshot(
+                    snapshotId,
+                    readTimestamp,
+                    txId,
+                    activeTxs,
+                    () -> activeSnapshots.remove(snapshotId)
+            );
         }
-
-        long snapshotId = snapshotIdGenerator.incrementAndGet();
-        long readTimestamp = tx.startTimestamp();
-        Set<Long> activeTxs = new HashSet<>(activeTransactions.keySet());
-        activeTxs.remove(txId); // Own writes are handled via readerTxId
-        activeSnapshots.put(snapshotId, readTimestamp);
-
-        return new Snapshot(
-                snapshotId,
-                readTimestamp,
-                txId,
-                activeTxs,
-                () -> activeSnapshots.remove(snapshotId)
-        );
     }
 
     /**
@@ -325,20 +348,47 @@ public class MvccStore {
             throw new WriteConflictException(key, txId, existingLockTx);
         }
 
+        if (existingLockTx != null && existingLockTx == txId) {
+            // Already holds write lock for this key in this transaction
+            return;
+        }
+
         // First-Committer-Wins (Snapshot Isolation conflict detection):
-        // Ensure no concurrent transaction committed a modification to this key after this transaction started.
+        // Ensure no concurrent transaction committed a modification to this key after this transaction started
+        // or since the transaction read this key.
         VersionChain chain = chains.get(key);
         if (chain != null) {
             VersionedValue node = chain.head();
-            // Find the most recent committed version (skipping any uncommitted or in-flight nodes)
+            // Find the most recent committed version (skipping any uncommitted nodes)
             while (node != null && !node.isCommitted()) {
                 node = node.next();
             }
-            if (node != null && node.commitTimestamp() > tx.startTimestamp()) {
-                if (existingLockTx == null) {
+
+            Long readTs = tx.getReadVersionCommitTimestamp(key);
+            if (readTs != null) {
+                // If the transaction previously read this key, ensure no newer version committed since:
+                if (readTs == 0L) {
+                    // Key was non-existent when read; conflict if a committed version now exists
+                    if (node != null) {
+                        keyWriteLocks.remove(key, txId);
+                        throw new WriteConflictException(key, txId, node.createTxId());
+                    }
+                } else if (node == null || node.commitTimestamp() > readTs || tx.inFlightTxsAtStart().contains(node.createTxId())) {
                     keyWriteLocks.remove(key, txId);
+                    long conflictingTx = (node != null) ? node.createTxId() : -1L;
+                    throw new WriteConflictException(key, txId, conflictingTx);
                 }
-                throw new WriteConflictException(key, txId, node.createTxId());
+            } else {
+                // Blind write: ensure no concurrent transaction committed after this tx started
+                // or was in-flight when this tx started
+                if (node != null) {
+                    boolean committedAfterStart = node.commitTimestamp() > tx.startTimestamp();
+                    boolean committedByInFlight = tx.inFlightTxsAtStart().contains(node.createTxId());
+                    if (committedAfterStart || committedByInFlight) {
+                        keyWriteLocks.remove(key, txId);
+                        throw new WriteConflictException(key, txId, node.createTxId());
+                    }
+                }
             }
         }
     }
@@ -364,9 +414,31 @@ public class MvccStore {
 
         VersionChain chain = chains.get(key);
         if (chain == null) {
+            if (snapshot.readerTxId() > 0) {
+                ActiveTx tx = activeTransactions.get(snapshot.readerTxId());
+                if (tx != null) {
+                    tx.recordRead(key, 0L);
+                }
+            }
             return Optional.empty();
         }
-        return chain.findVisible(snapshot);
+
+        Optional<VersionedValue> visibleNode = chain.findVisibleNode(snapshot);
+        if (snapshot.readerTxId() > 0) {
+            ActiveTx tx = activeTransactions.get(snapshot.readerTxId());
+            if (tx != null) {
+                if (visibleNode.isPresent()) {
+                    tx.recordRead(key, visibleNode.get().commitTimestamp());
+                } else {
+                    tx.recordRead(key, 0L);
+                }
+            }
+        }
+
+        if (visibleNode.isEmpty() || visibleNode.get().isTombstone()) {
+            return Optional.empty();
+        }
+        return Optional.of(visibleNode.get().value());
     }
 
     /**

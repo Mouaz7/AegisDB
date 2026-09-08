@@ -213,3 +213,13 @@ or via script:
 ./scripts/run-sprint6-demo.sh
 ```
 
+### Run Comprehensive Stress & Performance Benchmark Suite (Sprints 1 to 6)
+```bash
+./scripts/run-stress-benchmarks.sh
+```
+or via test suite:
+```bash
+mvn test -pl aegisdb_integration -Dtest=StressBenchmarkTest
+```
+
+
