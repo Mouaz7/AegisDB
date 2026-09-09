@@ -202,6 +202,86 @@ Sprint 7 implements atomic multi-operation local transactions, Read/Write Sets, 
   - [ADR 0007: Single-Shard Transactions and Concurrency Control](file:///c:/Users/mouaz/AegisDB/docs/adr/0007-single-shard-transactions.md)
   - [Sprints 1-7 Performance & Stress Benchmarks](file:///c:/Users/mouaz/AegisDB/experiments/sprints-1-to-7-benchmarks.md)
 
+
+---
+
+## Sprint 8: Sharding, Replication Groups & Dynamic Query Routing
+
+Sprint 8 implements horizontal sharding, dynamic topology management, and transparent query routing per Master Project Plan §4, §5, §6, §10, §11, §12, §14, §17, §18 & §20 (US013, US014):
+- **US013:** As a cluster, I want multiple shards so data is distributed.
+- **US014:** As a client, I want operations routed to the correct shard automatically.
+
+### Completed Acceptance Criteria (Sprint 8)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **MurmurHash3 partitioning** | Deterministic 32-bit MurmurHash3 key-to-shard mapping ($\text{floorMod}(\text{hash}(\text{key}), \text{shardCount})$) guaranteeing uniform key distribution across shards ($\pm 5\%$ of ideal mean). | ✅ PASS |
+| **Multi-Raft replication groups** | Each shard is managed by an independent `ReplicationGroup` with dedicated Raft state machine, WAL, and consensus group. | ✅ PASS |
+| **Dynamic leader locator** | `LeaderLocator` dynamically caches active shard leaders, processes leader redirect hints, and evicts stale entries on failure. | ✅ PASS |
+| **Transparent query routing** | `QueryRouter` and `ShardedAegisDbClient` route `put`, `get`, and `delete` operations seamlessly across shards with automatic redirect handling and backoff retries. | ✅ PASS |
+| **Shard fault isolation** | Leader failure, network partition, or re-election in one shard has zero impact on the availability and throughput of other shards. | ✅ PASS |
+| **Multi-Raft invariant scoping** | Extended `RaftInvariants` tracking terms, leader uniqueness, and committed log prefixes on an independent per-consensus-group basis. | ✅ PASS |
+
+### Architecture & Sharding Guarantees (Sprint 8)
+- **Zero-Dependency Murmur3**: Standalone pure-Java 32-bit MurmurHash3 implementation without external library dependencies.
+- **Strict Decoupling**: Core sharding topology remains transport-agnostic and completely independent of Spring or management APIs.
+- **Sprint 8 Documentation**:
+  - [Sprint 8 Completion & Verification Report](file:///c:/Users/mouaz/AegisDB/docs/sprint8-completion-report.md)
+  - [Sharding Architecture & Topologies](file:///c:/Users/mouaz/AegisDB/docs/sharding.md)
+
+---
+
+## Sprint 9: Cross-Shard Distributed Transactions & Two-Phase Commit (Milestone M4 Gate)
+
+Sprint 9 implements cross-shard atomic distributed transactions using the Two-Phase Commit (2PC) protocol, crash recovery journal, and OCC conflict detection per Master Project Plan §4, §5, §10, §11, §12, §14, §17, §18 & §20 (US015; Milestone M4 Gate):
+- **US015:** As a client, I want distributed transactions across multiple shards with 2PC.
+
+### Completed Acceptance Criteria (Sprint 9)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **Two-Phase Commit (2PC) protocol** | Parallel Phase 1 `PREPARE` broadcast across participant shards, durable coordinator state transitions, and Phase 2 `COMMIT` / `ABORT` fan-out with idempotent participant execution. | ✅ PASS |
+| **Durable coordinator WAL** | `DurableCoordinatorLog` using binary record framing with magic header `0xAE6120C0`, CRC32 checksums, fsync on commit decisions, and torn-write tail truncation. | ✅ PASS |
+| **8-scenario crash recovery matrix** | `DistributedTransactionRecovery` automatically replays coordinator journal on startup and resolves in-doubt transactions across all 8 failure modes defined in Master Plan §10. | ✅ PASS |
+| **Key-level prepare locks & OCC** | `LocalShardParticipant` holds exclusive locks on prepared keys to prevent conflicting updates and validates read sets under Optimistic Concurrency Control for strict Serializability. | ✅ PASS |
+| **Client SDK transaction integration** | `ShardedAegisDbClient.beginTransaction(level)` returns `DistributedTransaction` with read-your-own-writes buffer, and `runInTransaction` handles automatic retry with randomized jitter. | ✅ PASS |
+| **Milestone M4 Gate** | Financial conservation invariant strictly maintained under high concurrent load across 3 distinct shards: bank account balances $A + B + C = 3000$ strictly conserved (0 funds lost, 0 funds created). | ✅ PASS |
+
+### Architecture & Durability Guarantees (Sprint 9)
+- **Decoupled 2PC Engine**: Pure Java 2PC coordinator and participant engine with zero external framework dependencies.
+- **In-Doubt Safety**: Participant shards never commit or abort unilaterally during in-doubt states; coordinator journal guarantees deterministic decision resolution.
+- **Sprint 9 Documentation**:
+  - [Sprint 9 Completion & Verification Report](file:///c:/Users/mouaz/AegisDB/docs/sprint9-completion-report.md)
+  - [Milestone M4 Verification Report](file:///c:/Users/mouaz/AegisDB/docs/milestone-m4-report.md)
+
+---
+
+## Sprint 10: Chaos Engineering, Fault Injection, Security Hardening & Management API
+
+Sprint 10 implements the chaos engineering framework, fault injection transport, continuous safety invariant monitoring, secure management plane, and security guardrails per Master Project Plan §3, §4, §5, §10, §11, §12, §14, §15, §17, §18 & §20 (US016, US017):
+- **US016:** As an operator, I want to inject faults and verify the system stays correct.
+- **US017:** As an operator, I want a secure management interface with authentication and limits.
+
+### Completed Acceptance Criteria (Sprint 10)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **AC1: Leader / follower kill** | Controlled termination and crashes of active leaders and followers; remaining nodes trigger re-election and preserve consensus state. | ✅ PASS |
+| **AC2: Network partitions & healing** | Bidirectional and majority/minority splits; minority partition is safely blocked from committing; majority continues; healing automatically resynchronizes logs. | ✅ PASS |
+| **AC3: Network anomalies (drop/delay/dup)** | Composable `FaultyTransport` decorator intercepting all inter-node RPCs with deterministic seeded pseudo-random packet drops, delay jitter, and duplicate faults. | ✅ PASS |
+| **AC4: Continuous safety invariants** | `ChaosInvariantMonitor` concurrently validates election safety (at most 1 leader per term), monotonic terms, log prefix equality, and bank invariant ($A + B + C = 3000$) under continuous chaos. | ✅ PASS |
+| **AC5: Management auth & RBAC** | Lightweight HTTP management server with constant-time Bearer token authentication (`MessageDigest.isEqual`) and role-based access control (`ROLE_MONITOR` vs `ROLE_ADMIN`). | ✅ PASS |
+| **AC6: Input limits & security guardrails** | Key size bounding (<= 1KB), payload bounding (<= 16MB), token-bucket rate limiting against DoS attacks, and strict path traversal directory escape sanitization. | ✅ PASS |
+
+### Architecture & Security Compliance (Sprint 10)
+- **Composable Decorator Pattern**: `FaultyTransport` wraps any `RaftTransport` without modifying consensus core logic.
+- **Side-Channel Defense**: Constant-time token verification prevents timing side-channel attacks on authentication headers.
+- **ArchUnit Architectural Rules**: ArchUnit verification strictly ensures core modules (`raft`, `storage`, `mvcc`, `transaction`) have zero dependencies on `chaos` or `management`.
+- **Sprint 10 Documentation**:
+  - [Sprint 10 Completion & Verification Report](file:///c:/Users/mouaz/AegisDB/docs/sprint10-completion-report.md)
+  - [Security Hardening & Guardrails Specification](file:///c:/Users/mouaz/AegisDB/docs/security.md)
+  - [ADR 0010: Chaos Engineering and Management Security Hardening](file:///c:/Users/mouaz/AegisDB/docs/adr/0010-chaos-and-security-hardening.md)
+
 ---
 
 ## Build and Run
@@ -277,5 +357,12 @@ or via test suite:
 ```bash
 mvn test -pl aegisdb_integration -Dtest=StressBenchmarkTest
 ```
+
+### Run Automated Security & Vulnerability Scan (Sprint 10 / US017)
+```bash
+./scripts/run-security-scan.sh
+```
+
+
 
 

@@ -67,9 +67,9 @@ AegisDB/
 ├── aegisdb_mvcc/             # Multi-Version Concurrency Control (MvccStore, Snapshots, VersionChains)
 ├── aegisdb_transaction/      # Single-shard transactions, isolation levels, validation, conflict detection & durable logging
 ├── aegisdb_sharding/         # HashPartitioner, ShardMap & Routing
-├── aegisdb_management/       # Management API & health endpoints (Spring Boot)
+├── aegisdb_management/       # Lightweight REST Management API, RBAC Bearer Token Auth & Security Guardrails
 ├── aegisdb_observability/    # OpenTelemetry & Prometheus metrics
-├── aegisdb_chaos/            # Fault injection & network partition testing
+├── aegisdb_chaos/            # Fault injection, network partition & continuous invariant testing
 └── aegisdb_benchmark/        # Latency & throughput benchmarks
 ```
 
@@ -86,4 +86,45 @@ The `aegisdb_transaction` module provides atomic, single-shard ACID transactions
   - *Serializable Snapshot Isolation (SSI):* Tracks read-sets to detect and reject anti-dependency anomalies (such as write skew).
 - **Durability & Recovery:** `DurableTransactionLog` guarantees crash safety using binary framing with magic headers (`0xAE615D70`), CRC32 checksums, and torn-write truncation.
 - **Idempotency & Limits:** Deduplicates client requests via `(ClientId, RequestId)` and prevents resource starvation via configurable write-set bounds and TTL expiration.
+
+---
+
+## 5. Multi-Raft Sharding & Query Routing Architecture
+
+Sprint 8 introduces horizontal sharding and dynamic query routing via Multi-Raft consensus groups:
+
+- **MurmurHash3 Partitioning:** Pure-Java 32-bit MurmurHash3 algorithm deterministically maps keys across shards ($\text{floorMod}(\text{hash}(\text{key}), \text{shardCount})$) with uniform distribution ($\pm 5\%$ deviation).
+- **Replication Groups:** Each shard operates as an independent Raft consensus group (`ReplicationGroup`) maintaining isolated logs, terms, and state machines.
+- **Fault Isolation:** Leader election, network splits, or slow followers in Shard A have zero operational impact on Shard B.
+- **Dynamic Leader Caching:** `LeaderLocator` maintains cached mappings of active shard leaders, intercepting redirect hints and invalidating stale routes on consensus transitions.
+- **Client Transparency:** `ShardedAegisDbClient` intercepts single-key and multi-shard operations, routing them transparently to the appropriate shard leader with backoff retry logic.
+
+---
+
+## 6. Distributed Transactions & Two-Phase Commit (2PC) Architecture
+
+Sprint 9 establishes atomic cross-shard distributed transactions (Milestone M4 Gate):
+
+- **2PC State Machine:** Explicit transitions (`INIT -> PREPARING -> COMMIT_DECIDED / ABORT_DECIDED -> COMMITTED / ABORTED`) enforced by `DistributedTransactionCoordinator`.
+- **Durable Coordinator WAL:** Decisions are durably appended to disk via `DurableCoordinatorLog` using binary framing (`0xAE6120C0` magic header, CRC32 checksums, and synchronous `fsync`).
+- **In-Doubt Safety & Prepare Locks:** Shard participants acquire key-level prepare locks during the in-doubt window. No participant commits or aborts unilaterally without coordinator instruction.
+- **8-Scenario Crash Recovery Matrix:** `DistributedTransactionRecovery` replays the coordinator log on startup, resolving transactions across all coordinator and participant crash permutations.
+- **Optimistic Concurrency Control (OCC):** Read sets are validated at prepare time to ensure serializable execution and eliminate write skew or lost updates across shards.
+
+---
+
+## 7. Chaos Engineering & Security Hardening Architecture
+
+Sprint 10 introduces systematic fault injection, continuous safety assertion, and management plane hardening:
+
+- **Composable Fault Injection (`FaultyTransport`):** Decorates the abstract `RaftTransport` layer to introduce deterministic packet drops, latency jitter, duplications, and network partitions without touching core consensus algorithms.
+- **Cluster Orchestration (`ChaosOrchestrator`):** Simulates leader kills, follower crashes, split-brain majority/minority partitions, and dynamic network healing.
+- **Continuous Invariant Verification (`ChaosInvariantMonitor`):** Concurrently asserts that election safety (at most one leader per term), monotonic terms, log prefix equality, and cross-shard financial balance conservation ($A + B + C = 3000$) remain strictly intact under continuous chaos.
+- **Management Plane & RBAC (`ManagementHttpServer`):** Lightweight JDK `HttpServer` with Java 25 virtual threads exposing operational diagnostics. Protected by constant-time Bearer token verification (`MessageDigest.isEqual`) defending against side-channel timing attacks.
+- **Security Guardrails:**
+  - Key size bounded to $\le 1\text{ KB}$ and payload size bounded to $\le 16\text{ MB}$.
+  - Token-bucket rate limiting against Denial-of-Service (DoS).
+  - Path traversal sanitization preventing directory escape vulnerabilities.
+- **Architectural Rules:** ArchUnit tests (`ChaosArchitectureTest`, `ManagementArchitectureTest`) enforce zero coupling between the consensus/storage/transaction core and the chaos/management subsystems.
+
 
