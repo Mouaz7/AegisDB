@@ -10,10 +10,11 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>aegisdb_integration</artifactId>
+    <artifactId>aegisdb_chaos</artifactId>
     <packaging>jar</packaging>
 
-    <name>AegisDB Integration Tests</name>
+    <name>AegisDB Chaos Engineering and Fault Injection</name>
+    <description>FaultyTransport decorator, network partitions, node crashes, packet loss, delays, and continuous invariant monitoring (Sprint 10; US016)</description>
 
     <dependencies>
         <dependency>
@@ -30,10 +31,6 @@
         </dependency>
         <dependency>
             <groupId>se.mouaz.aegisdb</groupId>
-            <artifactId>aegisdb_node</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>se.mouaz.aegisdb</groupId>
             <artifactId>aegisdb_raft</artifactId>
         </dependency>
         <dependency>
@@ -42,11 +39,7 @@
         </dependency>
         <dependency>
             <groupId>se.mouaz.aegisdb</groupId>
-            <artifactId>aegisdb_client</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>se.mouaz.aegisdb</groupId>
-            <artifactId>aegisdb_mvcc</artifactId>
+            <artifactId>aegisdb_node</artifactId>
         </dependency>
         <dependency>
             <groupId>se.mouaz.aegisdb</groupId>
@@ -58,31 +51,38 @@
         </dependency>
         <dependency>
             <groupId>se.mouaz.aegisdb</groupId>
-            <artifactId>aegisdb_chaos</artifactId>
+            <artifactId>aegisdb_client</artifactId>
         </dependency>
         <dependency>
-            <groupId>se.mouaz.aegisdb</groupId>
-            <artifactId>aegisdb_management</artifactId>
-        </dependency>
-
-        <!-- Logging -->
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
         </dependency>
 
         <!-- Testing -->
         <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

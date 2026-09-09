@@ -33,9 +33,12 @@ AegisDB/
 ├── aegisdb_storage/          # Disk persistence, WAL, CRC32 Checksums, Snapshots & Recovery
 ├── aegisdb_mvcc/             # Multi-Version Concurrency Control (Version chains, Snapshots, GC)
 ├── aegisdb_transaction/      # Single-Shard Transaction Engine (ACID, Read/Write Sets, Validation, Commit/Abort)
+├── aegisdb_sharding/         # Horizontal Sharding, Topology & Dynamic Query Routing
+├── aegisdb_chaos/            # Fault injection, network partitions, packet drops & continuous invariant monitoring
+├── aegisdb_management/       # Secure REST Management API, RBAC Bearer Token Auth & Security Guardrails
 ├── aegisdb_node/             # Node lifecycle (DatabaseNode, NodeBootstrap, NodeLifecycle)
 ├── aegisdb_client/           # Java Client SDK (AegisDbClient, transparent redirect/retry, transactional client)
-└── aegisdb_integration/      # Acceptance tests & verification demos for Sprints 1-7
+└── aegisdb_integration/      # Acceptance tests & verification demos for Sprints 1-10
 ```
 
 ---
@@ -251,7 +254,22 @@ or via script:
 ./scripts/run-sprint7-demo.sh
 ```
 
-### Run Comprehensive Stress & Performance Benchmark Suite (Sprints 1 to 7)
+### Run Live Demonstration for Sprint 8 (Sharding & Dynamic Query Routing)
+```bash
+./scripts/run-sprint8-demo.sh
+```
+
+### Run Live Demonstration for Sprint 9 (Cross-Shard 2PC / Milestone M4 Gate)
+```bash
+./scripts/run-sprint9-demo.sh
+```
+
+### Run Live Demonstration for Sprint 10 (Chaos Engineering & Security Hardening)
+```bash
+./scripts/run-sprint10-demo.sh
+```
+
+### Run Comprehensive Stress & Performance Benchmark Suite (Sprints 1 to 9)
 ```bash
 ./scripts/run-stress-benchmarks.sh
 ```

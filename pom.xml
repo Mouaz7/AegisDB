@@ -23,11 +23,13 @@
         <module>aegisdb_client</module>
         <module>aegisdb_transaction</module>
         <module>aegisdb_sharding</module>
+        <module>aegisdb_chaos</module>
+        <module>aegisdb_management</module>
         <module>aegisdb_integration</module>
     </modules>
 
     <properties>
-        <maven.compiler.release>25</maven.compiler.release>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
@@ -97,6 +99,16 @@
             <dependency>
                 <groupId>se.mouaz.aegisdb</groupId>
                 <artifactId>aegisdb_sharding</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_chaos</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_management</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -181,7 +193,7 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
                     <configuration>
-                        <release>25</release>
+                        <release>${maven.compiler.release}</release>
                     </configuration>
                 </plugin>
                 <plugin>
