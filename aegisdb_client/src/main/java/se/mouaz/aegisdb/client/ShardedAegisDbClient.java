@@ -6,8 +6,14 @@ import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.common.ShardId;
 import se.mouaz.aegisdb.raft.statemachine.KvCommand;
 import se.mouaz.aegisdb.sharding.*;
+import se.mouaz.aegisdb.common.TransactionId;
 import se.mouaz.aegisdb.transaction.IsolationLevel;
 import se.mouaz.aegisdb.transaction.Transaction;
+import se.mouaz.aegisdb.transaction.distributed.DistributedTransaction;
+import se.mouaz.aegisdb.transaction.distributed.DistributedTransactionCoordinator;
+import se.mouaz.aegisdb.transaction.distributed.InMemoryCoordinatorLog;
+import se.mouaz.aegisdb.transaction.distributed.TransactionCoordinatorLog;
+import se.mouaz.aegisdb.transaction.distributed.TransactionParticipant;
 
 import java.io.Closeable;
 import java.util.*;
@@ -24,14 +30,48 @@ public class ShardedAegisDbClient implements AegisDbClient {
 
     private final QueryRouter queryRouter;
     private final Map<ShardId, AegisDbClient> shardClients;
+    private final DistributedTransactionCoordinator coordinator;
 
     public ShardedAegisDbClient(QueryRouter queryRouter) {
-        this(queryRouter, Collections.emptyMap());
+        this(queryRouter, Collections.emptyMap(), (DistributedTransactionCoordinator) null);
     }
 
     public ShardedAegisDbClient(QueryRouter queryRouter, Map<ShardId, AegisDbClient> shardClients) {
+        this(queryRouter, shardClients, (DistributedTransactionCoordinator) null);
+    }
+
+    public ShardedAegisDbClient(
+            QueryRouter queryRouter,
+            Map<ShardId, AegisDbClient> shardClients,
+            DistributedTransactionCoordinator coordinator
+    ) {
         this.queryRouter = Objects.requireNonNull(queryRouter, "queryRouter cannot be null");
         this.shardClients = shardClients != null ? new HashMap<>(shardClients) : Collections.emptyMap();
+        this.coordinator = coordinator;
+    }
+
+    public ShardedAegisDbClient(
+            QueryRouter queryRouter,
+            Map<ShardId, AegisDbClient> shardClients,
+            Map<ShardId, TransactionParticipant> participants
+    ) {
+        this(queryRouter, shardClients, participants, new InMemoryCoordinatorLog());
+    }
+
+    public ShardedAegisDbClient(
+            QueryRouter queryRouter,
+            Map<ShardId, AegisDbClient> shardClients,
+            Map<ShardId, TransactionParticipant> participants,
+            TransactionCoordinatorLog coordinatorLog
+    ) {
+        this.queryRouter = Objects.requireNonNull(queryRouter, "queryRouter cannot be null");
+        this.shardClients = shardClients != null ? new HashMap<>(shardClients) : Collections.emptyMap();
+        Objects.requireNonNull(participants, "participants cannot be null");
+        Objects.requireNonNull(coordinatorLog, "coordinatorLog cannot be null");
+        this.coordinator = new DistributedTransactionCoordinator(
+                coordinatorLog,
+                participants::get
+        );
     }
 
     @Override
@@ -100,29 +140,73 @@ public class ShardedAegisDbClient implements AegisDbClient {
         return client.beginTransaction(level);
     }
 
+    private final java.util.concurrent.atomic.AtomicLong txCounter =
+            new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis() * 1000L);
+
     @Override
     public Transaction beginTransaction(IsolationLevel level) {
         ShardMap map = queryRouter.shardRouter().shardMap();
-        if (map.shardCount() == 1) {
+        if (map.shardCount() == 1 && coordinator == null) {
             return beginTransaction(map.getShardByIndex(0).get().id(), level);
         }
+        if (coordinator != null) {
+            TransactionId txId = TransactionId.of(txCounter.getAndIncrement());
+            return new DistributedTransaction(
+                    txId,
+                    level,
+                    key -> queryRouter.shardRouter().routeToShardId(key),
+                    (shardId, key) -> {
+                        try {
+                            return get(key).join();
+                        } catch (Exception e) {
+                            log.error("Failed to read key {} from shard {}", key, shardId, e);
+                            return Optional.empty();
+                        }
+                    },
+                    coordinator
+            );
+        }
         throw new UnsupportedOperationException(
-                "Multi-shard cluster requires explicit shard targeting: beginTransaction(ShardId, IsolationLevel). " +
-                "Cross-shard distributed transactions require Two-Phase Commit (Sprint 9).");
+                "Multi-shard cluster requires explicit shard targeting: beginTransaction(ShardId, IsolationLevel) " +
+                "or configured DistributedTransactionCoordinator for Two-Phase Commit.");
     }
 
     @Override
     public <T> T runInTransaction(IsolationLevel level, Function<Transaction, T> action, int maxRetries) {
         ShardMap map = queryRouter.shardRouter().shardMap();
-        if (map.shardCount() == 1) {
+        if (map.shardCount() == 1 && coordinator == null) {
             ShardId singleShard = map.getShardByIndex(0).get().id();
             AegisDbClient client = shardClients.get(singleShard);
             if (client != null) {
                 return client.runInTransaction(level, action, maxRetries);
             }
         }
+        if (coordinator != null) {
+            int attempts = 0;
+            while (true) {
+                attempts++;
+                Transaction tx = beginTransaction(level);
+                try {
+                    T result = action.apply(tx);
+                    tx.commit();
+                    return result;
+                } catch (Exception e) {
+                    tx.abort();
+                    if (attempts >= maxRetries) {
+                        throw e instanceof RuntimeException re ? re : new RuntimeException(e);
+                    }
+                    try {
+                        long sleepMs = java.util.concurrent.ThreadLocalRandom.current().nextLong(5, 20) + (5L * Math.min(attempts, 10));
+                        Thread.sleep(sleepMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Interrupted during transaction retry", ie);
+                    }
+                }
+            }
+        }
         throw new UnsupportedOperationException(
-                "Multi-shard transactions require explicit shard targeting or Sprint 9 Two-Phase Commit.");
+                "Multi-shard transactions require explicit shard targeting or configured DistributedTransactionCoordinator.");
     }
 
     public QueryRouter queryRouter() {
@@ -137,9 +221,20 @@ public class ShardedAegisDbClient implements AegisDbClient {
         return queryRouter.shardRouter().shardMap();
     }
 
+    public DistributedTransactionCoordinator coordinator() {
+        return coordinator;
+    }
+
     @Override
     public void close() {
         queryRouter.close();
+        if (coordinator != null) {
+            try {
+                coordinator.close();
+            } catch (Exception e) {
+                log.warn("Error closing 2PC coordinator", e);
+            }
+        }
         for (AegisDbClient client : shardClients.values()) {
             try {
                 client.close();

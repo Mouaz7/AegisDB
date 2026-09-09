@@ -24,6 +24,10 @@
             <artifactId>aegisdb_mvcc</artifactId>
         </dependency>
         <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb_sharding</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
