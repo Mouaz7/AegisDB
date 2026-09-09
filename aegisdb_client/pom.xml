@@ -37,6 +37,10 @@
             <groupId>se.mouaz.aegisdb</groupId>
             <artifactId>aegisdb_transaction</artifactId>
         </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb_sharding</artifactId>
+        </dependency>
 
         <!-- Logging -->
         <dependency>

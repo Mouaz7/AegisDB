@@ -15,16 +15,26 @@ public class RaftState {
     private final VolatileRaftState volatileState;
     private final LeaderState leaderState;
     private volatile NodeId currentLeader = null;
+    private final String clusterId;
 
-    public RaftState(NodeId localNodeId, PersistentRaftState persistentState) {
+    public RaftState(NodeId localNodeId, PersistentRaftState persistentState, String clusterId) {
         this.localNodeId = Objects.requireNonNull(localNodeId, "localNodeId cannot be null");
         this.persistentState = persistentState != null ? persistentState : new PersistentRaftState();
         this.volatileState = new VolatileRaftState();
         this.leaderState = new LeaderState();
+        this.clusterId = clusterId != null ? clusterId : "default";
+    }
+
+    public RaftState(NodeId localNodeId, PersistentRaftState persistentState) {
+        this(localNodeId, persistentState, "default");
     }
 
     public RaftState(NodeId localNodeId) {
-        this(localNodeId, new PersistentRaftState());
+        this(localNodeId, new PersistentRaftState(), "default");
+    }
+
+    public String clusterId() {
+        return clusterId;
     }
 
     public NodeId localNodeId() {
@@ -80,6 +90,6 @@ public class RaftState {
         this.role = RaftRole.LEADER;
         this.currentLeader = localNodeId;
         this.leaderState.initialize(peers, 0L);
-        RaftInvariants.recordLeaderElected(persistentState.currentTerm(), localNodeId);
+        RaftInvariants.recordLeaderElected(clusterId, persistentState.currentTerm(), localNodeId);
     }
 }

@@ -90,7 +90,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
         this.ownsScheduler = scheduler == null;
         this.scheduler = scheduler != null ? scheduler : new SystemScheduler();
 
-        this.state = new RaftState(nodeId, persistentState);
+        this.state = new RaftState(nodeId, persistentState, clusterConfig.clusterId().value());
         this.raftLog = raftLog != null ? raftLog : new RaftLog();
         this.conflictResolver = new LogConflictResolver();
         this.commitIndexManager = new CommitIndexManager();

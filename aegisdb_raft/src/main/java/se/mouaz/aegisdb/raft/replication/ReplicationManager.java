@@ -253,7 +253,7 @@ public class ReplicationManager {
             if (newCommit > oldCommit) {
                 state.volatileState().setCommitIndex(newCommit);
                 log.info("Leader {} advanced commitIndex from {} to {}", localNodeId, oldCommit, newCommit);
-                RaftInvariants.assertCommittedEntriesNeverOverwritten(newCommit, raftLog);
+                RaftInvariants.assertCommittedEntriesNeverOverwritten(clusterConfig.clusterId().value(), newCommit, raftLog);
 
                 for (long idx = oldCommit + 1; idx <= newCommit; idx++) {
                     CompletableFuture<Long> fut = pendingClientFutures.remove(idx);
