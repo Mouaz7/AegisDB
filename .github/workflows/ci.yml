@@ -39,6 +39,12 @@ jobs:
           chmod +x scripts/*.sh
           ./scripts/run-sprint10-demo.sh
 
+      - name: Run Live Demonstration & Research Benchmarks (Sprint 11 / US018, US019)
+        run: |
+          ./scripts/run-sprint11-demo.sh
+          python -m pip install matplotlib
+          python scripts/plot_benchmarks.py
+
       - name: Security Hardening & Dependency Scan (Master Plan §12)
         run: |
           ./scripts/run-security-scan.sh
