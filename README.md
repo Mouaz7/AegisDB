@@ -36,9 +36,11 @@ AegisDB/
 ├── aegisdb_sharding/         # Horizontal Sharding, Topology & Dynamic Query Routing
 ├── aegisdb_chaos/            # Fault injection, network partitions, packet drops & continuous invariant monitoring
 ├── aegisdb_management/       # Secure REST Management API, RBAC Bearer Token Auth & Security Guardrails
+├── aegisdb_observability/    # OpenTelemetry metrics, distributed tracing & Prometheus exposition
+├── aegisdb_benchmark/        # Reproducible research benchmark harness (RQ1-RQ3) with JSON/CSV export
 ├── aegisdb_node/             # Node lifecycle (DatabaseNode, NodeBootstrap, NodeLifecycle)
 ├── aegisdb_client/           # Java Client SDK (AegisDbClient, transparent redirect/retry, transactional client)
-└── aegisdb_integration/      # Acceptance tests & verification demos for Sprints 1-10
+└── aegisdb_integration/      # Acceptance tests & verification demos for Sprints 1-11
 ```
 
 ---
@@ -362,6 +364,61 @@ mvn test -pl aegisdb_integration -Dtest=StressBenchmarkTest
 ```bash
 ./scripts/run-security-scan.sh
 ```
+
+---
+
+## Sprint 11: Observability, Telemetry & Empirical Research Evaluation
+
+Sprint 11 provides production-grade observability and an automated, reproducible research benchmarking harness per Master Project Plan §14, §15, §17, §20 & §21:
+- **US018:** As a researcher, I want reproducible performance measurements.
+- **US019:** As an operator, I want telemetry for cluster behavior.
+
+### Completed Acceptance Criteria (Sprint 11)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **AC1: OpenTelemetry Metrics & Tracer** | Lock-free counters, gauges, percentiles and request trace spans across the cluster. | ✅ PASS |
+| **AC2: Prometheus OpenMetrics Export** | Standard `/metrics` endpoint on `ManagementHttpServer` for Prometheus scrapers. | ✅ PASS |
+| **AC3: Real-Time Telemetry Dashboard** | Operational console view and provisioned Grafana dashboard (`aegisdb_dashboard.json`). | ✅ PASS |
+| **AC4: RQ1 Raft Write Batching** | Empirical throughput scaling and tail latency evaluation across batch sizes (1, 10, 50, 100). | ✅ PASS |
+| **AC5: RQ2 Fault Recovery & Delays** | Injected RPC delays and mid-flight leader kill failover recovery measurement. | ✅ PASS |
+| **AC6: RQ3 MVCC Contention & Invariant** | Write conflict abort rate scaling while strictly preserving financial balance invariants ($A+B+C...=\text{Const}$). | ✅ PASS |
+| **AC7: Automated Reproducible Export** | Complete export to `experiments/data/results.csv` and `results.json` with commit & JVM metadata. | ✅ PASS |
+
+### Run Live Demonstration for Sprint 11
+```bash
+./scripts/run-sprint11-demo.sh
+```
+or directly via Maven:
+```bash
+mvn test-compile exec:java -pl aegisdb_integration \
+    -Dexec.mainClass=se.mouaz.aegisdb.integration.Sprint11Demo \
+    -Dexec.classpathScope=test
+```
+
+### Run Master Research Benchmark Suite
+```bash
+mvn exec:java -pl aegisdb_benchmark \
+    -Dexec.mainClass=se.mouaz.aegisdb.benchmark.ExperimentSuiteRunner
+```
+
+### Launch Prometheus & Grafana Monitoring Stack
+```bash
+cd docker/
+docker compose up -d
+```
+- **Prometheus UI**: `http://localhost:9090`
+- **Grafana UI**: `http://localhost:3000` (User: `admin`, Password: `aegisdb`)
+
+### Generate Publication Research Graphs
+```bash
+python scripts/plot_benchmarks.py
+```
+Output figures are saved in `experiments/graphs/`:
+- `rq1_batching.png`
+- `rq2_recovery.png`
+- `rq3_contention.png`
+
 
 
 
