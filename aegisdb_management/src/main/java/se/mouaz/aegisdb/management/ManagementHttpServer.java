@@ -175,9 +175,23 @@ public class ManagementHttpServer implements AutoCloseable {
     }
 
     private String handleMetrics(HttpExchange ex) {
-        long uptime = System.currentTimeMillis() - startedAt;
-        return String.format("{\"metrics\":{\"uptime_seconds\":%d,\"node_status\":1,\"requests_total\":0}}",
-                uptime / 1000);
+        se.mouaz.aegisdb.observability.AegisMetrics metrics = se.mouaz.aegisdb.observability.AegisTelemetry.metricsFor(node.nodeId());
+        node.raftNode().ifPresent(raft -> {
+            metrics.setCurrentTerm(raft.currentTerm());
+            metrics.setRaftLogSize(raft.log().lastLogIndex());
+            metrics.setReplicationLag(Math.max(0, raft.log().lastLogIndex() - raft.commitIndex()));
+        });
+
+        String accept = ex.getRequestHeaders().getFirst("Accept");
+        if (accept != null && accept.contains("application/json")) {
+            long uptime = (System.currentTimeMillis() - startedAt) / 1000;
+            return String.format("{\"nodeId\":\"%s\",\"uptime_seconds\":%d,\"requests_total\":%d,\"p99_latency_ms\":%.2f}",
+                    node.nodeId(), uptime, metrics.getRequestCount(), metrics.getP99LatencyMs());
+        }
+
+        // Default to Prometheus text exposition format for scrapers
+        ex.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+        return metrics.exportPrometheusText();
     }
 
     private String handleAdminSnapshot(HttpExchange ex) {
@@ -199,7 +213,9 @@ public class ManagementHttpServer implements AutoCloseable {
 
     private void sendResponse(HttpExchange exchange, int statusCode, String responseBody) throws IOException {
         byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        if (!exchange.getResponseHeaders().containsKey("Content-Type")) {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+        }
         exchange.sendResponseHeaders(statusCode, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);

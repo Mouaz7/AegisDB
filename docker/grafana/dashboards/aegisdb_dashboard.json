@@ -1,0 +1,102 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "title": "Cluster Throughput (ops/sec)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(aegisdb_request_total[30s])",
+          "legendFormat": "{{node}} Throughput"
+        }
+      ]
+    },
+    {
+      "title": "Tail Latencies (P50, P95, P99 ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "aegisdb_latency_p50_milliseconds",
+          "legendFormat": "{{node}} P50 Latency (ms)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "aegisdb_latency_p95_milliseconds",
+          "legendFormat": "{{node}} P95 Latency (ms)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "aegisdb_latency_p99_milliseconds",
+          "legendFormat": "{{node}} P99 Latency (ms)"
+        }
+      ]
+    },
+    {
+      "title": "Raft Consensus Term & Elections",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "aegisdb_raft_term",
+          "legendFormat": "Term"
+        }
+      ]
+    },
+    {
+      "title": "Raft Log Size (Entries)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "aegisdb_raft_log_size",
+          "legendFormat": "Log Size"
+        }
+      ]
+    },
+    {
+      "title": "MVCC Transaction Abort Rate (%)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "aegisdb_transaction_abort_rate * 100",
+          "legendFormat": "Abort %"
+        }
+      ]
+    },
+    {
+      "title": "Total Leader Elections",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 8 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "aegisdb_leader_election_total",
+          "legendFormat": "Elections"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["aegisdb", "raft", "mvcc", "observability"],
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AegisDB Cluster Telemetry & Observability",
+  "version": 1
+}
