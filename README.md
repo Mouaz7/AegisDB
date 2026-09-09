@@ -385,6 +385,14 @@ Sprint 11 provides production-grade observability and an automated, reproducible
 | **AC6: RQ3 MVCC Contention & Invariant** | Write conflict abort rate scaling while strictly preserving financial balance invariants ($A+B+C...=\text{Const}$). | ✅ PASS |
 | **AC7: Automated Reproducible Export** | Complete export to `experiments/data/results.csv` and `results.json` with commit & JVM metadata. | ✅ PASS |
 
+### Architecture & Observability Guarantees (Sprint 11)
+- **Zero Overhead & Lock-Free**: OpenTelemetry metrics utilize thread-safe lock-free primitives and ring-buffered traces to maintain zero overhead in the hot path.
+- **Prometheus Standard Exporter**: Standard `/metrics` Prometheus endpoint integrated seamlessly into the management plane.
+- **Sprint 11 Documentation**:
+  - [Sprint 11 Completion & Verification Report](docs/sprint11-completion-report.md)
+  - [Master Benchmark & Empirical Research Specification](docs/experiments.md)
+  - [ADR 0011: Observability, Telemetry and Research Benchmarking](docs/adr/0011-observability-benchmarking-and-research.md)
+
 ### Run Live Demonstration for Sprint 11
 ```bash
 ./scripts/run-sprint11-demo.sh
@@ -414,12 +422,14 @@ docker compose up -d
 ```bash
 python scripts/plot_benchmarks.py
 ```
-Output figures are saved in `experiments/graphs/`:
-- `rq1_batching.png`
-- `rq2_recovery.png`
-- `rq3_contention.png`
 
+### Research Evaluation Results
 
+#### RQ1: Batching vs Throughput & Tail Latency
+![RQ1: Batching vs Throughput & Latency](experiments/graphs/rq1_batching.png)
 
+#### RQ2: Fault Injection & Failover Recovery Time
+![RQ2: Fault Injection & Recovery Time](experiments/graphs/rq2_recovery.png)
 
-
+#### RQ3: MVCC Contention & Abort Rate Invariant Conservation
+![RQ3: MVCC Contention & Abort Rate](experiments/graphs/rq3_contention.png)
