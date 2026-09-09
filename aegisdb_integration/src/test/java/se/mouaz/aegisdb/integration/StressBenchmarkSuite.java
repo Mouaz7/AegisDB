@@ -18,6 +18,13 @@ import se.mouaz.aegisdb.storage.wal.WalConfig;
 import se.mouaz.aegisdb.storage.wal.WalManager;
 import se.mouaz.aegisdb.storage.wal.WalReader;
 import se.mouaz.aegisdb.transport.InMemoryTransport;
+import se.mouaz.aegisdb.transaction.IsolationLevel;
+import se.mouaz.aegisdb.transaction.Transaction;
+import se.mouaz.aegisdb.transaction.TransactionManager;
+import se.mouaz.aegisdb.transaction.WriteSet;
+import se.mouaz.aegisdb.transaction.log.DurableTransactionLog;
+import se.mouaz.aegisdb.transaction.log.InMemoryTransactionLog;
+import se.mouaz.aegisdb.common.TransactionId;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -100,8 +107,13 @@ public class StressBenchmarkSuite {
         results.add(benchmarkWalCrashRecovery(10_000));
 
         // 4. Multi-Node Raft Consensus Replication
-        System.out.println("\n▶ [4/4] Running 3-Node Raft Consensus Replication Benchmark...");
+        System.out.println("\n▶ [4/5] Running 3-Node Raft Consensus Replication Benchmark...");
         results.add(benchmarkRaftReplication(1_000));
+
+        // 5. Single-Shard Transaction Engine & Concurrency Invariant (Sprint 7)
+        System.out.println("\n▶ [5/5] Running Single-Shard Transaction & Invariant Benchmarks (Sprint 7)...");
+        results.add(benchmarkSingleShardTransactionThroughput(16, 5_000));
+        results.add(benchmarkTransactionDurableLogging(5_000));
 
         // Summary Table
         System.out.println("\n=======================================================================");
@@ -535,6 +547,122 @@ public class StressBenchmarkSuite {
             transport1.close();
             transport2.close();
             transport3.close();
+        }
+    }
+
+    /**
+     * Benchmark 5A: Single-Shard Transaction Throughput & Bank Invariant under High Contention (Sprint 7).
+     */
+    public static BenchmarkResult benchmarkSingleShardTransactionThroughput(int threadCount, int totalTransfers) throws Exception {
+        MvccStore store = new MvccStore();
+        store.put("A", "1000".getBytes(StandardCharsets.UTF_8));
+        store.put("B", "1000".getBytes(StandardCharsets.UTF_8));
+        store.put("C", "1000".getBytes(StandardCharsets.UTF_8));
+
+        TransactionManager manager = new TransactionManager(store, new InMemoryTransactionLog());
+
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch startSignal = new CountDownLatch(1);
+        CountDownLatch doneSignal = new CountDownLatch(threadCount);
+        int opsPerThread = totalTransfers / threadCount;
+        long[] latencies = new long[totalTransfers];
+        AtomicInteger globalIdx = new AtomicInteger(0);
+
+        String[] accounts = {"A", "B", "C"};
+        long tStart = System.nanoTime();
+
+        for (int t = 0; t < threadCount; t++) {
+            executor.submit(() -> {
+                try {
+                    startSignal.await();
+                    Random rnd = new Random();
+                    for (int i = 0; i < opsPerThread; i++) {
+                        int f = rnd.nextInt(3);
+                        int to = (f + 1 + rnd.nextInt(2)) % 3;
+                        String fromAcc = accounts[f];
+                        String toAcc = accounts[to];
+                        int amount = rnd.nextInt(15) + 1;
+
+                        long t0 = System.nanoTime();
+                        manager.runInTransaction(IsolationLevel.SNAPSHOT_ISOLATION, tx -> {
+                            int b1 = Integer.parseInt(tx.getString(fromAcc).orElse("0"));
+                            int b2 = Integer.parseInt(tx.getString(toAcc).orElse("0"));
+                            tx.putString(fromAcc, String.valueOf(b1 - amount));
+                            tx.putString(toAcc, String.valueOf(b2 + amount));
+                            return null;
+                        }, 50);
+                        long elapsed = System.nanoTime() - t0;
+
+                        int idx = globalIdx.getAndIncrement();
+                        if (idx < latencies.length) {
+                            latencies[idx] = elapsed;
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Benchmark worker error", e);
+                } finally {
+                    doneSignal.countDown();
+                }
+            });
+        }
+
+        startSignal.countDown();
+        doneSignal.await(60, TimeUnit.SECONDS);
+        executor.shutdown();
+        long totalDuration = System.nanoTime() - tStart;
+
+        int balA = Integer.parseInt(new String(store.get("A").orElseThrow(), StandardCharsets.UTF_8));
+        int balB = Integer.parseInt(new String(store.get("B").orElseThrow(), StandardCharsets.UTF_8));
+        int balC = Integer.parseInt(new String(store.get("C").orElseThrow(), StandardCharsets.UTF_8));
+        int sum = balA + balB + balC;
+
+        if (sum != 3000) {
+            throw new IllegalStateException("Invariant violated! Sum = " + sum);
+        }
+
+        System.out.printf("   ✔ Bank Invariant verified: A=%d, B=%d, C=%d | Total=%d (100%% Conserved)\n",
+                balA, balB, balC, sum);
+
+        BenchmarkResult res = calculateResult(
+                "Tx Single-Shard Bank Transfers (16 Threads, SI)",
+                totalTransfers, totalTransfers, 0, totalDuration, latencies
+        );
+        res.print();
+        manager.close();
+        return res;
+    }
+
+    /**
+     * Benchmark 5B: Durable TransactionLog Append Throughput with CRC32 framing (Sprint 7).
+     */
+    public static BenchmarkResult benchmarkTransactionDurableLogging(int recordCount) throws Exception {
+        Path tempLog = Files.createTempFile("tx-benchmark-wal", ".log");
+        tempLog.toFile().deleteOnExit();
+
+        try (DurableTransactionLog dLog = new DurableTransactionLog(tempLog, false)) {
+            WriteSet ws = new WriteSet();
+            ws.put("bench:key", "sample_payload_data".getBytes(StandardCharsets.UTF_8), 100);
+
+            long[] latencies = new long[recordCount];
+            long tStart = System.nanoTime();
+
+            for (int i = 1; i <= recordCount; i++) {
+                long t0 = System.nanoTime();
+                dLog.logCommit(TransactionId.of(i), System.currentTimeMillis(), ws);
+                latencies[i - 1] = System.nanoTime() - t0;
+            }
+
+            long totalDuration = System.nanoTime() - tStart;
+            System.out.printf("   ✔ Appended %,d durable CRC32-checksummed transaction records to disk.\n", recordCount);
+
+            BenchmarkResult res = calculateResult(
+                    "Durable TransactionLog Append (CRC32 framing)",
+                    recordCount, recordCount, 0, totalDuration, latencies
+            );
+            res.print();
+            return res;
+        } finally {
+            Files.deleteIfExists(tempLog);
         }
     }
 

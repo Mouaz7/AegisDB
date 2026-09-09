@@ -21,6 +21,7 @@
         <module>aegisdb_mvcc</module>
         <module>aegisdb_node</module>
         <module>aegisdb_client</module>
+        <module>aegisdb_transaction</module>
         <module>aegisdb_integration</module>
     </modules>
 
@@ -85,6 +86,11 @@
             <dependency>
                 <groupId>se.mouaz.aegisdb</groupId>
                 <artifactId>aegisdb_mvcc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>se.mouaz.aegisdb</groupId>
+                <artifactId>aegisdb_transaction</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

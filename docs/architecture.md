@@ -56,7 +56,7 @@ AegisDB/
 ├── scripts/                  # Build, test, and live demonstration scripts
 ├── experiments/              # Benchmarks & research experiments
 │
-├── aegisdb_common/           # Domain models (NodeId, Endpoint, NodeStatus, Configs)
+├── aegisdb_common/           # Domain models (NodeId, Endpoint, NodeStatus, TransactionId, ClientId, RequestId)
 ├── aegisdb_protocol/         # Protobuf contracts & gRPC RPC definitions
 ├── aegisdb_transport/        # GrpcRaftTransport & InMemoryTransport
 ├── aegisdb_node/             # DatabaseNode, NodeBootstrap & NodeLifecycle
@@ -64,11 +64,26 @@ AegisDB/
 ├── aegisdb_raft/             # Raft Consensus, Election, Replication & Snapshots
 ├── aegisdb_storage/          # StorageEngine, WAL, CRC32 & Snapshots
 ├── aegisdb_client/           # Java SDK Client & Leader Redirect
-├── aegisdb_mvcc/             # Multi-Version Concurrency Control
-├── aegisdb_transaction/      # Transaction management & isolation
+├── aegisdb_mvcc/             # Multi-Version Concurrency Control (MvccStore, Snapshots, VersionChains)
+├── aegisdb_transaction/      # Single-shard transactions, isolation levels, validation, conflict detection & durable logging
 ├── aegisdb_sharding/         # HashPartitioner, ShardMap & Routing
 ├── aegisdb_management/       # Management API & health endpoints (Spring Boot)
 ├── aegisdb_observability/    # OpenTelemetry & Prometheus metrics
 ├── aegisdb_chaos/            # Fault injection & network partition testing
 └── aegisdb_benchmark/        # Latency & throughput benchmarks
 ```
+
+---
+
+## 4. Transaction & Concurrency Architecture
+
+The `aegisdb_transaction` module provides atomic, single-shard ACID transactions with Snapshot Isolation (SI) and Serializable Snapshot Isolation (SSI):
+
+- **Decoupled Architecture:** Zero coupling to transport, network, gRPC, or Spring frameworks. Depends solely on `aegisdb_common` and `aegisdb_mvcc`.
+- **4-State Lifecycle:** Explicit state machine enforcing `ACTIVE -> PREPARING -> PREPARED -> COMMITTED` and `ACTIVE/PREPARING/PREPARED -> ABORTED`.
+- **Isolation Modes:**
+  - *Snapshot Isolation (SI):* Readers observe a consistent snapshot; concurrent writers detect collisions via First-Committer-Wins.
+  - *Serializable Snapshot Isolation (SSI):* Tracks read-sets to detect and reject anti-dependency anomalies (such as write skew).
+- **Durability & Recovery:** `DurableTransactionLog` guarantees crash safety using binary framing with magic headers (`0xAE615D70`), CRC32 checksums, and torn-write truncation.
+- **Idempotency & Limits:** Deduplicates client requests via `(ClientId, RequestId)` and prevents resource starvation via configurable write-set bounds and TTL expiration.
+

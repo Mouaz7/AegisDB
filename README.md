@@ -31,9 +31,11 @@ AegisDB/
 ├── aegisdb_transport/        # Transport abstraction (InMemoryTransport, GrpcRaftTransport)
 ├── aegisdb_raft/             # Raft Consensus Engine (Election, Heartbeats, State, Invariants, Snapshots)
 ├── aegisdb_storage/          # Disk persistence, WAL, CRC32 Checksums, Snapshots & Recovery
+├── aegisdb_mvcc/             # Multi-Version Concurrency Control (Version chains, Snapshots, GC)
+├── aegisdb_transaction/      # Single-Shard Transaction Engine (ACID, Read/Write Sets, Validation, Commit/Abort)
 ├── aegisdb_node/             # Node lifecycle (DatabaseNode, NodeBootstrap, NodeLifecycle)
-├── aegisdb_client/           # Java Client SDK (AegisDbClient, transparent redirect/retry)
-└── aegisdb_integration/      # Acceptance tests & verification demos for Sprints 1-5
+├── aegisdb_client/           # Java Client SDK (AegisDbClient, transparent redirect/retry, transactional client)
+└── aegisdb_integration/      # Acceptance tests & verification demos for Sprints 1-7
 ```
 
 ---
@@ -168,6 +170,37 @@ Sprint 6 implements lock-free multi-version storage, point-in-time snapshot isol
 
 ---
 
+## Sprint 7: Single-Shard Transactions (Milestone M3 Gate)
+
+Sprint 7 implements atomic multi-operation local transactions, Read/Write Sets, commit validation, conflict detection, durable transaction logging, and financial invariant preservation per Master Project Plan §5, §9, §11, §14, §17, §18 & §20 (US012; Milestone M3 Gate):
+- **US012:** As a client, I want multiple operations to commit atomically.
+
+### Completed Acceptance Criteria (Sprint 7)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **Transaction state machine** | 4-state lifecycle (`ACTIVE -> PREPARING -> PREPARED -> COMMITTED / ABORTED`) with immutable terminal state checks. | ✅ PASS |
+| **ReadSet / WriteSet** | In-flight read tracking and mutation buffering with Read-Your-Own-Writes and bounded size enforcement (`maxWriteSetSize`). | ✅ PASS |
+| **ConflictDetector** | First-Committer-Wins conflict evaluation under Snapshot Isolation and read-set anti-dependency checking under Serializable mode. | ✅ PASS |
+| **CommitValidator** | Precondition verification, transaction TTL timeout expiration, and conflict inspection prior to state commit. | ✅ PASS |
+| **Snapshot Isolation tests** | Full anomaly suite verified: Dirty Read, Lost Update, Non-Repeatable Read, Write-Write Conflict, and Write Skew (SI vs SSI). | ✅ PASS |
+| **Concurrent transfer invariant** | Master Plan §14 Bank Invariant ($A=1000, B=1000, C=1000 \to A+B+C=3000$) 100% conserved across 5,000+ operations. | ✅ PASS |
+| **Durable TransactionLog** | Binary append-only log with magic `0xAE615D70`, CRC32 checksum framing, torn-tail truncation, and crash recovery. | ✅ PASS |
+| **Milestone M3 Gate** | MVCC and single-shard transactions preserve invariants under sustained 16-thread multi-client concurrency. | ✅ PASS |
+
+### Architecture & Concurrency Guarantees (Sprint 7)
+- **ACID Guarantees**: Complete atomicity and point-in-time snapshot isolation for multi-operation transactions.
+- **Idempotency & Deduplication**: Safe duplicate `commit`/`abort` handling and `ClientId + RequestId` transaction deduplication (Master Plan §10).
+- **Resource Security**: Strict bounding on write-set memory allocations and transaction TTL timeouts (Master Plan §12).
+- **Decoupled Architecture**: `aegisdb_transaction` maintains zero dependencies on Spring, gRPC, Protobuf, management, benchmark, or chaos modules per ArchUnit tests.
+- **Sprint 7 Documentation**:
+  - [Sprint 7 Completion & Verification Report](file:///c:/Users/mouaz/AegisDB/docs/sprint7-completion-report.md)
+  - [Single-Shard Transactions Specification & Diagrams](file:///c:/Users/mouaz/AegisDB/docs/transactions.md)
+  - [ADR 0007: Single-Shard Transactions and Concurrency Control](file:///c:/Users/mouaz/AegisDB/docs/adr/0007-single-shard-transactions.md)
+  - [Sprints 1-7 Performance & Stress Benchmarks](file:///c:/Users/mouaz/AegisDB/experiments/sprints-1-to-7-benchmarks.md)
+
+---
+
 ## Build and Run
 
 ### Prerequisites
@@ -213,7 +246,12 @@ or via script:
 ./scripts/run-sprint6-demo.sh
 ```
 
-### Run Comprehensive Stress & Performance Benchmark Suite (Sprints 1 to 6)
+### Run Live Demonstration for Sprint 7 (Single-Shard Transactions / Milestone M3 Gate)
+```bash
+./scripts/run-sprint7-demo.sh
+```
+
+### Run Comprehensive Stress & Performance Benchmark Suite (Sprints 1 to 7)
 ```bash
 ./scripts/run-stress-benchmarks.sh
 ```

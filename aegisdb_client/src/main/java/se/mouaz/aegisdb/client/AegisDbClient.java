@@ -48,6 +48,36 @@ public interface AegisDbClient extends Closeable {
      */
     Optional<NodeId> currentLeader();
 
+    /**
+     * Starts a new single-shard transaction with default Snapshot Isolation (Sprint 7, US012).
+     */
+    default se.mouaz.aegisdb.transaction.Transaction beginTransaction() {
+        return beginTransaction(se.mouaz.aegisdb.transaction.IsolationLevel.SNAPSHOT_ISOLATION);
+    }
+
+    /**
+     * Starts a new single-shard transaction with the requested isolation level (Sprint 7, US012).
+     */
+    default se.mouaz.aegisdb.transaction.Transaction beginTransaction(se.mouaz.aegisdb.transaction.IsolationLevel level) {
+        throw new UnsupportedOperationException("Transactions are not supported by this client implementation");
+    }
+
+    /**
+     * Executes the given action atomically within a transaction with automatic conflict retry (Sprint 7, US012).
+     */
+    default <T> T runInTransaction(java.util.function.Function<se.mouaz.aegisdb.transaction.Transaction, T> action) {
+        return runInTransaction(se.mouaz.aegisdb.transaction.IsolationLevel.SNAPSHOT_ISOLATION, action, 5);
+    }
+
+    /**
+     * Executes the given action atomically within a transaction with the specified isolation level and retry count.
+     */
+    default <T> T runInTransaction(se.mouaz.aegisdb.transaction.IsolationLevel level,
+                                   java.util.function.Function<se.mouaz.aegisdb.transaction.Transaction, T> action,
+                                   int maxRetries) {
+        throw new UnsupportedOperationException("Transactions are not supported by this client implementation");
+    }
+
     @Override
     void close();
 }
