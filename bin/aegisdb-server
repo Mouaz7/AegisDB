@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# =====================================================================
+# AegisDB Standalone Server Process Launcher
+# Master Project Plan §2, §4, §5 & §24
+# =====================================================================
+
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_FILE="${1:-$DIR/config/aegisdb-cluster.yaml}"
+NODE_ID="${2:-node-1}"
+
+echo "====================================================================="
+echo "  Starting AegisDB Server [Node ID: $NODE_ID]"
+echo "  Configuration: $CONFIG_FILE"
+echo "====================================================================="
+
+CP="$DIR/lib/*"
+
+exec java -cp "$CP" \
+    se.mouaz.aegisdb.node.DatabaseNode \
+    --config "$CONFIG_FILE" \
+    --node "$NODE_ID"

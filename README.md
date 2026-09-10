@@ -426,6 +426,201 @@ python scripts/plot_benchmarks.py
 ### Research Evaluation Results
 
 #### RQ1: Batching vs Throughput & Tail Latency
+---
+
+## Sprint 9: Cross-Shard Distributed Transactions & Two-Phase Commit (Milestone M4 Gate)
+
+Sprint 9 implements cross-shard atomic distributed transactions using the Two-Phase Commit (2PC) protocol, crash recovery journal, and OCC conflict detection per Master Project Plan §4, §5, §10, §11, §12, §14, §17, §18 & §20 (US015; Milestone M4 Gate):
+- **US015:** As a client, I want distributed transactions across multiple shards with 2PC.
+
+### Completed Acceptance Criteria (Sprint 9)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **Two-Phase Commit (2PC) protocol** | Parallel Phase 1 `PREPARE` broadcast across participant shards, durable coordinator state transitions, and Phase 2 `COMMIT` / `ABORT` fan-out with idempotent participant execution. | ✅ PASS |
+| **Durable coordinator WAL** | `DurableCoordinatorLog` using binary record framing with magic header `0xAE6120C0`, CRC32 checksums, fsync on commit decisions, and torn-write tail truncation. | ✅ PASS |
+| **8-scenario crash recovery matrix** | `DistributedTransactionRecovery` automatically replays coordinator journal on startup and resolves in-doubt transactions across all 8 failure modes defined in Master Plan §10. | ✅ PASS |
+| **Key-level prepare locks & OCC** | `LocalShardParticipant` holds exclusive locks on prepared keys to prevent conflicting updates and validates read sets under Optimistic Concurrency Control for strict Serializability. | ✅ PASS |
+| **Client SDK transaction integration** | `ShardedAegisDbClient.beginTransaction(level)` returns `DistributedTransaction` with read-your-own-writes buffer, and `runInTransaction` handles automatic retry with randomized jitter. | ✅ PASS |
+| **Milestone M4 Gate** | Financial conservation invariant strictly maintained under high concurrent load across 3 distinct shards: bank account balances $A + B + C = 3000$ strictly conserved (0 funds lost, 0 funds created). | ✅ PASS |
+
+### Architecture & Durability Guarantees (Sprint 9)
+- **Decoupled 2PC Engine**: Pure Java 2PC coordinator and participant engine with zero external framework dependencies.
+- **In-Doubt Safety**: Participant shards never commit or abort unilaterally during in-doubt states; coordinator journal guarantees deterministic decision resolution.
+- **Sprint 9 Documentation**:
+  - [Sprint 9 Completion & Verification Report](file:///c:/Users/mouaz/AegisDB/docs/sprint9-completion-report.md)
+  - [Milestone M4 Verification Report](file:///c:/Users/mouaz/AegisDB/docs/milestone-m4-report.md)
+
+---
+
+## Sprint 10: Chaos Engineering, Fault Injection, Security Hardening & Management API
+
+Sprint 10 implements the chaos engineering framework, fault injection transport, continuous safety invariant monitoring, secure management plane, and security guardrails per Master Project Plan §3, §4, §5, §10, §11, §12, §14, §15, §17, §18 & §20 (US016, US017):
+- **US016:** As an operator, I want to inject faults and verify the system stays correct.
+- **US017:** As an operator, I want a secure management interface with authentication and limits.
+
+### Completed Acceptance Criteria (Sprint 10)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **AC1: Leader / follower kill** | Controlled termination and crashes of active leaders and followers; remaining nodes trigger re-election and preserve consensus state. | ✅ PASS |
+| **AC2: Network partitions & healing** | Bidirectional and majority/minority splits; minority partition is safely blocked from committing; majority continues; healing automatically resynchronizes logs. | ✅ PASS |
+| **AC3: Network anomalies (drop/delay/dup)** | Composable `FaultyTransport` decorator intercepting all inter-node RPCs with deterministic seeded pseudo-random packet drops, delay jitter, and duplicate faults. | ✅ PASS |
+| **AC4: Continuous safety invariants** | `ChaosInvariantMonitor` concurrently validates election safety (at most 1 leader per term), monotonic terms, log prefix equality, and bank invariant ($A + B + C = 3000$) under continuous chaos. | ✅ PASS |
+| **AC5: Management auth & RBAC** | Lightweight HTTP management server with constant-time Bearer token authentication (`MessageDigest.isEqual`) and role-based access control (`ROLE_MONITOR` vs `ROLE_ADMIN`). | ✅ PASS |
+| **AC6: Input limits & security guardrails** | Key size bounding (<= 1KB), payload bounding (<= 16MB), token-bucket rate limiting against DoS attacks, and strict path traversal directory escape sanitization. | ✅ PASS |
+
+### Architecture & Security Compliance (Sprint 10)
+- **Composable Decorator Pattern**: `FaultyTransport` wraps any `RaftTransport` without modifying consensus core logic.
+- **Side-Channel Defense**: Constant-time token verification prevents timing side-channel attacks on authentication headers.
+- **ArchUnit Architectural Rules**: ArchUnit verification strictly ensures core modules (`raft`, `storage`, `mvcc`, `transaction`) have zero dependencies on `chaos` or `management`.
+- **Sprint 10 Documentation**:
+  - [Sprint 10 Completion & Verification Report](file:///c:/Users/mouaz/AegisDB/docs/sprint10-completion-report.md)
+  - [Security Hardening & Guardrails Specification](file:///c:/Users/mouaz/AegisDB/docs/security.md)
+  - [ADR 0010: Chaos Engineering and Management Security Hardening](file:///c:/Users/mouaz/AegisDB/docs/adr/0010-chaos-and-security-hardening.md)
+
+---
+
+## Build and Run
+
+### Prerequisites
+- **Java 25 LTS**
+- **Maven 3.8+**
+
+### Run All Unit, Architecture, and Integration Tests
+```bash
+mvn clean test
+```
+or via script:
+```bash
+./scripts/test-all.sh
+```
+
+### Run Live Demonstration for Sprint 1 (Networking & Nodes)
+```bash
+./scripts/run-sprint1-demo.sh
+```
+
+### Run Live Demonstration for Sprint 2 (Raft Leader Election)
+```bash
+./scripts/run-sprint2-demo.sh
+```
+
+### Run Live Demonstration for Sprint 3 (Raft Log Replication)
+```bash
+./scripts/run-sprint3-demo.sh
+```
+
+### Run Live Demonstration for Sprint 4 (Persistence & Crash Recovery)
+```bash
+./scripts/run-sprint4-demo.sh
+```
+
+### Run Live Demonstration for Sprint 5 (Snapshots & Replicated KV Store / Milestone M2 Gate)
+```bash
+./scripts/run-sprint5-demo.sh
+```
+
+### Run Live Demonstration for Sprint 6 (MVCC & Snapshot Isolation)
+```bash
+./scripts/run-sprint6-demo.sh
+```
+
+### Run Live Demonstration for Sprint 7 (Single-Shard Transactions / Milestone M3 Gate)
+```bash
+./scripts/run-sprint7-demo.sh
+```
+
+### Run Live Demonstration for Sprint 8 (Sharding & Dynamic Query Routing)
+```bash
+./scripts/run-sprint8-demo.sh
+```
+
+### Run Live Demonstration for Sprint 9 (Cross-Shard 2PC / Milestone M4 Gate)
+```bash
+./scripts/run-sprint9-demo.sh
+```
+
+### Run Live Demonstration for Sprint 10 (Chaos Engineering & Security Hardening)
+```bash
+./scripts/run-sprint10-demo.sh
+```
+
+### Run Comprehensive Stress & Performance Benchmark Suite (Sprints 1 to 9)
+```bash
+./scripts/run-stress-benchmarks.sh
+```
+or via test suite:
+```bash
+mvn test -pl aegisdb_integration -Dtest=StressBenchmarkTest
+```
+
+### Run Automated Security & Vulnerability Scan (Sprint 10 / US017)
+```bash
+./scripts/run-security-scan.sh
+```
+
+---
+
+## Sprint 11: Observability, Telemetry & Empirical Research Evaluation
+
+Sprint 11 provides production-grade observability and an automated, reproducible research benchmarking harness per Master Project Plan §14, §15, §17, §20 & §21:
+- **US018:** As a researcher, I want reproducible performance measurements.
+- **US019:** As an operator, I want telemetry for cluster behavior.
+
+### Completed Acceptance Criteria (Sprint 11)
+
+| Criterion | Description | Status |
+|---|---|:---:|
+| **AC1: OpenTelemetry Metrics & Tracer** | Lock-free counters, gauges, percentiles and request trace spans across the cluster. | ✅ PASS |
+| **AC2: Prometheus OpenMetrics Export** | Standard `/metrics` endpoint on `ManagementHttpServer` for Prometheus scrapers. | ✅ PASS |
+| **AC3: Real-Time Telemetry Dashboard** | Operational console view and provisioned Grafana dashboard (`aegisdb_dashboard.json`). | ✅ PASS |
+| **AC4: RQ1 Raft Write Batching** | Empirical throughput scaling and tail latency evaluation across batch sizes (1, 10, 50, 100). | ✅ PASS |
+| **AC5: RQ2 Fault Recovery & Delays** | Injected RPC delays and mid-flight leader kill failover recovery measurement. | ✅ PASS |
+| **AC6: RQ3 MVCC Contention & Invariant** | Write conflict abort rate scaling while strictly preserving financial balance invariants ($A+B+C...=\text{Const}$). | ✅ PASS |
+| **AC7: Automated Reproducible Export** | Complete export to `experiments/data/results.csv` and `results.json` with commit & JVM metadata. | ✅ PASS |
+
+### Architecture & Observability Guarantees (Sprint 11)
+- **Zero Overhead & Lock-Free**: OpenTelemetry metrics utilize thread-safe lock-free primitives and ring-buffered traces to maintain zero overhead in the hot path.
+- **Prometheus Standard Exporter**: Standard `/metrics` Prometheus endpoint integrated seamlessly into the management plane.
+- **Sprint 11 Documentation**:
+  - [Sprint 11 Completion & Verification Report](docs/sprint11-completion-report.md)
+  - [Master Benchmark & Empirical Research Specification](docs/experiments.md)
+  - [ADR 0011: Observability, Telemetry and Research Benchmarking](docs/adr/0011-observability-benchmarking-and-research.md)
+
+### Run Live Demonstration for Sprint 11
+```bash
+./scripts/run-sprint11-demo.sh
+```
+or directly via Maven:
+```bash
+mvn test-compile exec:java -pl aegisdb_integration \
+    -Dexec.mainClass=se.mouaz.aegisdb.integration.Sprint11Demo \
+    -Dexec.classpathScope=test
+```
+
+### Run Master Research Benchmark Suite
+```bash
+mvn exec:java -pl aegisdb_benchmark \
+    -Dexec.mainClass=se.mouaz.aegisdb.benchmark.ExperimentSuiteRunner
+```
+
+### Launch Prometheus & Grafana Monitoring Stack
+```bash
+cd docker/
+docker compose up -d
+```
+- **Prometheus UI**: `http://localhost:9090`
+- **Grafana UI**: `http://localhost:3000` (User: `admin`, Password: `aegisdb`)
+
+### Generate Publication Research Graphs
+```bash
+python scripts/plot_benchmarks.py
+```
+
+### Research Evaluation Results
+
+#### RQ1: Batching vs Throughput & Tail Latency
 ![RQ1: Batching vs Throughput & Latency](experiments/graphs/rq1_batching.png)
 
 #### RQ2: Fault Injection & Failover Recovery Time
@@ -433,3 +628,87 @@ python scripts/plot_benchmarks.py
 
 #### RQ3: MVCC Contention & Abort Rate Invariant Conservation
 ![RQ3: MVCC Contention & Abort Rate](experiments/graphs/rq3_contention.png)
+
+---
+
+## Sprint 12: Master Capstone Demonstration, System Release & Master Gate
+
+Sprint 12 concludes the master engineering plan, fulfilling the **16-step Master Demonstration Scenario (§26)**, validating all **28 items of the Master Completion Checklist (§28)**, and providing production release distribution packaging per Master Project Plan §1, §3, §14, §17, §19, §20, §24, §26 & §28:
+
+### Completed Acceptance Criteria (Sprint 12)
+
+| Step / Criterion | Description | Status |
+|---|---|:---:|
+| **Step 01: Cluster Bootstrap** | Start three-node cluster and show distinct node identities and endpoints. | ✅ PASS |
+| **Step 02: Leader Election** | Elect Raft leader with term monotonicity and single-leader invariant. | ✅ PASS |
+| **Step 03: Replicated Writes** | Commit linearizable replicated writes across majority quorum state machines. | ✅ PASS |
+| **Step 04: Concurrent Workload** | High-throughput multi-threaded client execution with latency percentiles. | ✅ PASS |
+| **Step 05: Leader Kill** | Abrupt leader termination mid-flight during active client traffic. | ✅ PASS |
+| **Step 06: Automatic Failover** | Automatic election of a new leader under higher term by surviving majority. | ✅ PASS |
+| **Step 07: Surviving Write Availability** | Continuous write availability and client redirect on new leader. | ✅ PASS |
+| **Step 08: Old Leader Catch-Up** | Old leader restarts as follower and synchronizes all missed log entries. | ✅ PASS |
+| **Step 09: MVCC & Snapshot Isolation** | Repeatable reads preserved, conflict aborts enforced, Bank Invariant ($A+B+C=3000$) preserved. | ✅ PASS |
+| **Step 10: Cross-Shard 2PC** | Distributed transaction coordinator executes atomic Two-Phase Commit across shards. | ✅ PASS |
+| **Step 11: Minority Network Partition** | Injected partition isolates minority node; unsafe writes rejected. | ✅ PASS |
+| **Step 12: Partition Healing** | Network partitions healed; 100% cluster synchronization restored. | ✅ PASS |
+| **Step 13: Management Security & RBAC** | Bearer token authentication, 401 on unauthorized access, input guardrails enforced. | ✅ PASS |
+| **Step 14: Telemetry & Traces** | OpenTelemetry spans recorded; Prometheus OpenMetrics scraped from `/metrics`. | ✅ PASS |
+| **Step 15: Research Export** | Automated benchmark results and provenance metadata exported to CSV & JSON. | ✅ PASS |
+| **Step 16: Empirical Trade-Offs** | Research evaluation addressing RQ1 (batching), RQ2 (failover), and RQ3 (MVCC contention). | ✅ PASS |
+
+### Master Completion Checklist (§28)
+
+- [x] Three or more nodes start reliably.
+- [x] Exactly one leader per term is enforced.
+- [x] Leader failure triggers recovery.
+- [x] Writes replicate and require majority commit.
+- [x] Committed state persists after restart.
+- [x] Corrupt/partial WAL tails are handled safely.
+- [x] Snapshots compact logs and restore state.
+- [x] Client PUT/GET/DELETE works across leader changes.
+- [x] MVCC visibility rules are tested.
+- [x] Local transactions are atomic.
+- [x] Shards route deterministically.
+- [x] Cross-shard 2PC transactions recover correctly.
+- [x] Retries and duplicate messages are idempotent.
+- [x] Chaos tests include partition/delay/drop/kill scenarios.
+- [x] Security controls protect management operations.
+- [x] Static quality and architecture gates run in CI.
+- [x] OpenTelemetry metrics/traces are available.
+- [x] Benchmarks export reproducible results.
+- [x] Research questions are answered with measured data.
+- [x] README and architecture documentation allow another developer to build and run the system from scratch.
+
+### Sprint 12 Documentation Deliverables
+- [Sprint 12 Completion & Verification Report](docs/sprint12-completion-report.md)
+- [Master Completion & System Release Report](docs/master-completion-report.md)
+- [ADR 0012: Master Capstone Demonstration & System Release](docs/adr/0012-master-capstone-and-system-release.md)
+
+### Run Master Capstone Live Demonstration (16 Steps)
+```bash
+./scripts/run-sprint12-demo.sh
+```
+or with heavy stress workload:
+```bash
+./scripts/run-sprint12-demo.sh --extended
+```
+or via Maven:
+```bash
+mvn test-compile exec:java -pl aegisdb_integration \
+    -Dexec.mainClass=se.mouaz.aegisdb.integration.Sprint12Demo \
+    -Dexec.classpathScope=test
+```
+
+### Verify Master Completion Checklist (§28)
+```bash
+./scripts/verify-master-checklist.sh
+```
+
+### Build Production Release Distribution Bundle
+```bash
+./scripts/package-release.sh
+```
+This generates:
+- `target/release/aegisdb-1.0.0-bin.tar.gz`
+- `target/release/aegisdb-1.0.0-bin.zip`
+- Cryptographic SHA-256 checksums

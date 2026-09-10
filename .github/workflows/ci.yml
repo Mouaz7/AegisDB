@@ -45,6 +45,15 @@ jobs:
           python -m pip install matplotlib
           python scripts/plot_benchmarks.py
 
+      - name: Run Master Capstone Live Demonstration & Verification (Sprint 12 / Master Plan §26 & §28)
+        run: |
+          ./scripts/run-sprint12-demo.sh
+          ./scripts/verify-master-checklist.sh
+
+      - name: Build & Verify Production Release Distribution Bundle (Master Plan §24)
+        run: |
+          ./scripts/package-release.sh
+
       - name: Security Hardening & Dependency Scan (Master Plan §12)
         run: |
           ./scripts/run-security-scan.sh

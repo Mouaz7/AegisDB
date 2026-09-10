@@ -1,0 +1,87 @@
+# =====================================================================
+# AegisDB Production Cluster Configuration Template
+# Master Project Plan §2, §3, §4, §8, §10, §12 & §24
+# =====================================================================
+
+cluster:
+  cluster_id: "aegisdb-prod-cluster"
+  shards: 3
+  replication_factor: 3
+
+nodes:
+  - node_id: "node-1"
+    endpoint:
+      host: "127.0.0.1"
+      port: 7001
+    raft_port: 8001
+    management:
+      enabled: true
+      port: 9001
+      rate_limit:
+        requests_per_sec: 100
+        burst: 200
+
+  - node_id: "node-2"
+    endpoint:
+      host: "127.0.0.1"
+      port: 7002
+    raft_port: 8002
+    management:
+      enabled: true
+      port: 9002
+      rate_limit:
+        requests_per_sec: 100
+        burst: 200
+
+  - node_id: "node-3"
+    endpoint:
+      host: "127.0.0.1"
+      port: 7003
+    raft_port: 8003
+    management:
+      enabled: true
+      port: 9003
+      rate_limit:
+        requests_per_sec: 100
+        burst: 200
+
+raft:
+  election_timeout_min_ms: 150
+  election_timeout_max_ms: 300
+  heartbeat_interval_ms: 50
+  batch_max_entries: 50
+  max_log_entries_before_snapshot: 1000
+
+storage:
+  data_dir: "/var/lib/aegisdb/data"
+  wal_segment_size_bytes: 67108864 # 64 MB
+  fsync_policy: "EVERY_COMMIT" # Options: EVERY_COMMIT, PERIODIC, BUFFERED
+  fsync_interval_ms: 10
+  checksum: "CRC32"
+
+transactions:
+  default_isolation_level: "SNAPSHOT_ISOLATION" # Options: READ_COMMITTED, SNAPSHOT_ISOLATION, SERIALIZABLE
+  cross_shard_2pc_timeout_ms: 5000
+  deadlock_detection_interval_ms: 500
+
+security:
+  rbac:
+    enabled: true
+    admin_token: "env:AEGISDB_ADMIN_TOKEN"
+    monitor_token: "env:AEGISDB_MONITOR_TOKEN"
+  tls:
+    enabled: false
+    cert_path: "/etc/aegisdb/tls/server.crt"
+    key_path: "/etc/aegisdb/tls/server.key"
+  guardrails:
+    max_key_bytes: 1024
+    max_value_bytes: 1048576 # 1 MB
+    max_batch_size: 500
+
+observability:
+  opentelemetry:
+    enabled: true
+    service_name: "aegisdb-engine"
+  prometheus:
+    enabled: true
+    path: "/metrics"
