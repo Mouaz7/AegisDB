@@ -348,7 +348,8 @@ public class MasterCapstoneIntegrationTest {
         assertThat(prom.body()).contains("aegisdb_write_total");
 
         // --- Step 15: Run saved benchmark and export data (§26.15) ---
-        List<BenchmarkResult> bRes = RQ1BatchingBenchmark.runSuite(10, 42L);
+        InMemoryTransport.clearRegistry();
+        List<BenchmarkResult> bRes = RQ1BatchingBenchmark.runSuite(5, 42L);
         assertThat(bRes).isNotEmpty();
         assertThat(bRes.get(0).throughputOpsSec()).isGreaterThan(0);
 

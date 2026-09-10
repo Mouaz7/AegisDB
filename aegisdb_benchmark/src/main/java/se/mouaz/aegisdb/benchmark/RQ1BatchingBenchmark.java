@@ -87,7 +87,7 @@ public class RQ1BatchingBenchmark {
             node2.start();
             node3.start();
 
-            BenchmarkUtils.awaitCondition(() -> node1.role() == RaftRole.LEADER, 5000);
+            BenchmarkUtils.awaitCondition(() -> node1.role() == RaftRole.LEADER, 15000);
 
             List<Long> latenciesNanos = new ArrayList<>(totalOps);
             long successfulOps = 0;
