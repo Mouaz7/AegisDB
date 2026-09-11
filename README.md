@@ -131,10 +131,10 @@ To view the full 16-step operational demonstration scenario (§26) in your conso
 ./scripts/run-release-smoke-test.sh --extended
 ```
 
-### 4. Verify the Master Completion Checklist (§28)
-Verify all 28 foundational requirements of the Master Engineering Plan:
+### 4. Verify the System Release Readiness (§28)
+Verify all 28 foundational requirements of the Engineering Plan:
 ```bash
-./scripts/verify-master-checklist.sh
+./scripts/verify-release-readiness.sh
 ```
 
 ---
@@ -429,13 +429,14 @@ In-depth technical specifications and architectural decisions are documented in 
 
 - [System Architecture Specification](docs/architecture.md)
 - [Consistency & Linearizability Model](docs/consistency.md)
-- [Failure Model & Fault Tolerance Analysis](docs/failure_model.md)
+- [Failure Model & Fault Tolerance Analysis](docs/failure-model.md)
 - [Raft Consensus Implementation Guide](docs/raft.md)
 - [Storage Engine, WAL & Recovery Internals](docs/storage.md)
 - [Log Compaction & Snapshot Streaming](docs/snapshots.md)
 - [Security Hardening & Guardrails](docs/security.md)
 - [Empirical Research & Benchmark Methodology](docs/experiments.md)
-- [Master Completion & System Release Report](docs/master-completion-report.md)
+- [Master Completion & System Release Report](docs/history/master-completion-report.md)
+- [Milestone 4 Report](docs/history/milestone-m4-report.md)
 
 ### Architectural Decision Records (ADRs)
 - [ADR 0001: Java 21 LTS Baseline](docs/adr/0001-java-21-baseline.md)
