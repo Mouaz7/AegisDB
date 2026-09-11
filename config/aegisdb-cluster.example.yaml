@@ -67,12 +67,12 @@ transactions:
 security:
   rbac:
     enabled: true
-    admin_token: "env:AEGISDB_ADMIN_TOKEN"
-    monitor_token: "env:AEGISDB_MONITOR_TOKEN"
+    admin_token: "${AEGISDB_ADMIN_TOKEN}"
+    monitor_token: "${AEGISDB_MONITOR_TOKEN}"
   tls:
-    enabled: false
-    cert_path: "/etc/aegisdb/tls/server.crt"
-    key_path: "/etc/aegisdb/tls/server.key"
+    enabled: true
+    cert_path: "${AEGISDB_TLS_CERT_PATH}"
+    key_path: "${AEGISDB_TLS_KEY_PATH}"
   guardrails:
     max_key_bytes: 1024
     max_value_bytes: 1048576 # 1 MB

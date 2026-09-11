@@ -1,15 +1,16 @@
 package se.mouaz.aegisdb.node;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.mouaz.aegisdb.common.ClusterConfiguration;
-import se.mouaz.aegisdb.common.NodeConfiguration;
-import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.common.ClusterId;
 import se.mouaz.aegisdb.common.Endpoint;
+import se.mouaz.aegisdb.common.NodeConfiguration;
+import se.mouaz.aegisdb.common.NodeId;
+import se.mouaz.aegisdb.node.config.AegisConfig;
+import se.mouaz.aegisdb.node.config.AegisConfigLoader;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -54,86 +55,19 @@ public class AegisDbServer {
             System.exit(2);
         }
 
-        JsonNode root;
+        AegisConfig config;
         try {
-            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-            root = mapper.readTree(configPath);
+            config = AegisConfigLoader.load(configFile, nodeIdStr);
         } catch (Exception e) {
-            System.err.println("Error: Failed to parse YAML configuration: " + e.getMessage());
+            System.err.println("Error: Failed to load configuration: " + e.getMessage());
             System.exit(3);
             return;
         }
 
-        JsonNode clusterNode = root.path("cluster");
-        String clusterIdStr = clusterNode.path("clusterId").asText(null);
-        if (clusterIdStr == null) {
-            System.err.println("Error: Missing cluster.clusterId in configuration");
-            System.exit(4);
-        }
-
-        JsonNode nodesArray = clusterNode.path("nodes");
-        if (!nodesArray.isArray() || nodesArray.isEmpty()) {
-            System.err.println("Error: Missing or empty cluster.nodes array in configuration");
-            System.exit(4);
-        }
-
-        JsonNode storageNode = root.path("storage");
-        String dataDirBase = storageNode.path("dataDir").asText(null);
-        if (dataDirBase == null) {
-            System.err.println("Error: Missing storage.dataDir in configuration");
-            System.exit(4);
-        }
-
-        JsonNode raftNode = root.path("raft");
-        long electionTimeoutMaxMs = raftNode.path("electionTimeoutMaxMs").asLong(300);
-        long heartbeatIntervalMs = raftNode.path("heartbeatIntervalMs").asLong(100);
-
-        ClusterConfiguration.Builder clusterBuilder = ClusterConfiguration.builder()
-                .clusterId(ClusterId.of(clusterIdStr));
-
-        JsonNode myNodeConfig = null;
-
-        for (JsonNode nodeItem : nodesArray) {
-            String nId = nodeItem.path("id").asText(null);
-            String nHost = nodeItem.path("host").asText(null);
-            int nPort = nodeItem.path("port").asInt(-1);
-
-            if (nId == null || nHost == null || nPort <= 0 || nPort > 65535) {
-                System.err.println("Error: Invalid node configuration, missing/invalid id, host, or port: " + nodeItem);
-                System.exit(4);
-            }
-
-            clusterBuilder.addMember(nId, nHost, nPort);
-
-            if (nId.equals(nodeIdStr)) {
-                myNodeConfig = nodeItem;
-            }
-        }
-
-        if (myNodeConfig == null) {
-            System.err.println("Error: Unknown node ID: " + nodeIdStr + " (not found in configuration)");
-            System.exit(5);
-        }
-
-        NodeId nodeId = NodeId.of(nodeIdStr);
-        String myHost = myNodeConfig.path("host").asText();
-        int myPort = myNodeConfig.path("port").asInt();
-        Path nodeDataDir = Path.of(dataDirBase, nodeIdStr);
-
-        NodeConfiguration nodeConfig = NodeConfiguration.builder()
-                .nodeId(nodeId)
-                .endpoint(Endpoint.of(myHost, myPort))
-                .dataDir(nodeDataDir)
-                .electionTimeout(Duration.ofMillis(electionTimeoutMaxMs))
-                .heartbeatInterval(Duration.ofMillis(heartbeatIntervalMs))
-                .build();
-
-        ClusterConfiguration clusterConfig = clusterBuilder.build();
-
-        log.info("Bootstrapping AegisDB Node: {}", nodeId);
+        log.info("Bootstrapping AegisDB Node: {}", config.nodeConfig().nodeId());
         
         try {
-            DatabaseNode node = NodeBootstrap.createGrpcNode(nodeConfig, clusterConfig);
+            DatabaseNode node = NodeBootstrap.createGrpcNode(config.nodeConfig(), config.clusterConfig());
             node.start();
             
             // Add shutdown hook to cleanly stop the node on SIGINT
@@ -143,7 +77,7 @@ public class AegisDbServer {
                 log.info("Node stopped.");
             }));
             
-            log.info("Node {} successfully started. Press Ctrl+C to stop.", nodeId);
+            log.info("Node {} successfully started. Press Ctrl+C to stop.", config.nodeConfig().nodeId());
             
             // Block main thread to keep JVM alive
             Thread.currentThread().join();
