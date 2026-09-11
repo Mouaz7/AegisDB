@@ -23,7 +23,7 @@ public class GrpcChannelManager implements AutoCloseable {
             }
             log.debug("Creating new gRPC channel to node {} at {}", id, endpoint);
             return ManagedChannelBuilder.forAddress(endpoint.host(), endpoint.port())
-                    .usePlaintext()
+                    .useTransportSecurity() // Replaced plaintext with TLS
                     .build();
         });
     }

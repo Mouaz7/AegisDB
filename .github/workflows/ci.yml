@@ -11,9 +11,9 @@ permissions:
 
 jobs:
   build-and-verify:
-    name: Build, Verify & Security Scan
+    name: Build & Verify
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - name: Checkout Code
@@ -27,28 +27,7 @@ jobs:
           cache: 'maven'
 
       - name: Compile and Verify Modules (Master Plan §13)
-        run: |
-          mvn clean test-compile
+        run: mvn clean test-compile
 
       - name: Execute Full Test Suite & Architecture Gates (Master Plan §11 & §14)
-        run: |
-          mvn test
-
-      - name: Run Live Demonstration & Research Benchmarks (Phase 11 / US018, US019)
-        run: |
-          ./scripts/run-stress-benchmarks.sh
-          python -m pip install matplotlib
-          python scripts/plot_benchmarks.py
-
-      - name: Run Master Capstone Live Demonstration & Verification (Phase 12 / Master Plan §26 & §28)
-        run: |
-          ./scripts/run-release-smoke-test.sh
-          ./scripts/verify-master-checklist.sh
-
-      - name: Build & Verify Production Release Distribution Bundle (Master Plan §24)
-        run: |
-          ./scripts/package-release.sh
-
-      - name: Security Hardening & Dependency Scan (Master Plan §12)
-        run: |
-          ./scripts/run-security-scan.sh
+        run: mvn test

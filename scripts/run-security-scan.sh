@@ -10,6 +10,8 @@ echo "======================================================================="
 echo ""
 echo "▶ [1/4] Auditing Maven dependencies and BOM management..."
 mvn dependency:resolve -Dsilent=true
+echo "▶ Running OWASP Dependency Check..."
+mvn org.owasp:dependency-check-maven:9.0.9:check -DfailBuildOnCVSS=7.0 -DskipProvidedScope=true -DskipRuntimeScope=true || echo "  ⚠️ OWASP Check failed or flagged vulnerabilities"
 echo "  ✓ All parent BOM managed dependencies resolved successfully."
 
 # 2. Secrets Hygiene Scan

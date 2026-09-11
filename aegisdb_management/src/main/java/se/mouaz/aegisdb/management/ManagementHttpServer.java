@@ -1,5 +1,7 @@
 package se.mouaz.aegisdb.management;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;
@@ -21,12 +23,13 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 
 /**
- * Lightweight, zero-dependency REST Management Server hosting operational and diagnostic endpoints
+ * Lightweight REST Management Server hosting operational and diagnostic endpoints
  * (Master Plan §15 and §17 / US017).
  * Implemented using JDK {@link HttpServer} with RBAC token authentication and rate limiting.
  */
 public class ManagementHttpServer implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(ManagementHttpServer.class);
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     private final HttpServer server;
     private final DatabaseNode node;
@@ -46,7 +49,7 @@ public class ManagementHttpServer implements AutoCloseable {
         this.rateLimiter = rateLimiter != null ? rateLimiter : RateLimiter.createDefault();
         this.startedAt = System.currentTimeMillis();
 
-        this.server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+        this.server = HttpServer.create(new InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), port), 0);
         this.server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
 
         registerEndpoints();
@@ -100,7 +103,7 @@ public class ManagementHttpServer implements AutoCloseable {
         // 1. Rate Limiter Guard
         if (!rateLimiter.tryAcquire(clientIp)) {
             log.warn("Rate limit exceeded for client IP {}", clientIp);
-            sendResponse(exchange, 429, "{\"error\":\"Too Many Requests\",\"status\":429}");
+            sendError(exchange, 429, "Too Many Requests");
             return;
         }
 
@@ -114,67 +117,84 @@ public class ManagementHttpServer implements AutoCloseable {
         if (!securityManager.authorize(principal, path, method)) {
             int status = principal.hasRole(Role.ROLE_ANONYMOUS) ? 401 : 403;
             String msg = status == 401 ? "Unauthorized: Bearer token required" : "Forbidden: Insufficient privileges";
-            sendResponse(exchange, status, String.format("{\"error\":\"%s\",\"status\":%d}", msg, status));
+            sendError(exchange, status, msg);
             return;
         }
 
         // 4. Dispatch handler
         try {
-            String jsonResponse = handler.handle(exchange);
-            sendResponse(exchange, 200, jsonResponse);
+            handler.handle(exchange);
         } catch (Exception e) {
             log.error("Internal error handling management endpoint: {}", path, e);
-            sendResponse(exchange, 500, String.format("{\"error\":\"%s\",\"status\":500}", e.getMessage()));
+            sendError(exchange, 500, "Internal Server Error");
         }
     }
 
     // --- Endpoint Handlers ---
 
-    private String handleHealth(HttpExchange ex) {
+    private void handleHealth(HttpExchange ex) throws Exception {
         long uptime = System.currentTimeMillis() - startedAt;
-        return String.format("{\"status\":\"UP\",\"nodeId\":\"%s\",\"nodeStatus\":\"%s\",\"uptimeMs\":%d}",
-                node.nodeId(), node.status(), uptime);
+        ObjectNode response = mapper.createObjectNode()
+                .put("status", "UP")
+                .put("nodeId", node.nodeId().value())
+                .put("nodeStatus", node.status().name())
+                .put("uptimeMs", uptime);
+        sendJsonResponse(ex, 200, response);
     }
 
-    private String handleNode(HttpExchange ex) {
-        return String.format("{\"nodeId\":\"%s\",\"status\":\"%s\",\"endpoint\":\"%s:%d\",\"storageEnginePresent\":%b}",
-                node.nodeId(), node.status(),
-                node.config().endpoint().host(), node.config().endpoint().port(),
-                node.storageEngine().isPresent());
+    private void handleNode(HttpExchange ex) throws Exception {
+        ObjectNode response = mapper.createObjectNode()
+                .put("nodeId", node.nodeId().value())
+                .put("status", node.status().name())
+                .put("endpoint", node.config().endpoint().host() + ":" + node.config().endpoint().port())
+                .put("storageEnginePresent", node.storageEngine().isPresent());
+        sendJsonResponse(ex, 200, response);
     }
 
-    private String handleCluster(HttpExchange ex) {
-        return String.format("{\"clusterId\":\"%s\",\"nodeCount\":%d}",
-                node.clusterConfig().clusterId().value(),
-                node.clusterConfig().clusterSize());
+    private void handleCluster(HttpExchange ex) throws Exception {
+        ObjectNode response = mapper.createObjectNode()
+                .put("clusterId", node.clusterConfig().clusterId().value())
+                .put("nodeCount", node.clusterConfig().clusterSize());
+        sendJsonResponse(ex, 200, response);
     }
 
-    private String handleRaft(HttpExchange ex) {
+    private void handleRaft(HttpExchange ex) throws Exception {
+        ObjectNode response = mapper.createObjectNode();
         if (node.raftNode().isEmpty()) {
-            return "{\"raftEnabled\":false}";
+            response.put("raftEnabled", false);
+        } else {
+            RaftNode raft = node.raftNode().get();
+            response.put("raftEnabled", true)
+                    .put("term", raft.currentTerm())
+                    .put("role", raft.role().name())
+                    .put("commitIndex", raft.commitIndex())
+                    .put("lastApplied", raft.lastApplied())
+                    .put("logSize", raft.log().lastLogIndex());
         }
-        RaftNode raft = node.raftNode().get();
-        return String.format("{\"raftEnabled\":true,\"term\":%d,\"role\":\"%s\",\"commitIndex\":%d,\"lastApplied\":%d,\"logSize\":%d}",
-                raft.currentTerm(),
-                raft.role(),
-                raft.commitIndex(),
-                raft.lastApplied(),
-                raft.log().lastLogIndex());
+        sendJsonResponse(ex, 200, response);
     }
 
-    private String handleShards(HttpExchange ex) {
+    private void handleShards(HttpExchange ex) throws Exception {
+        ObjectNode response = mapper.createObjectNode();
         if (shardManager == null) {
-            return "{\"shardingEnabled\":false}";
+            response.put("shardingEnabled", false);
+        } else {
+            response.put("shardingEnabled", true)
+                    .put("shardCount", shardManager.shardMap().allShards().size());
         }
-        return String.format("{\"shardingEnabled\":true,\"shardCount\":%d}",
-                shardManager.shardMap().allShards().size());
+        sendJsonResponse(ex, 200, response);
     }
 
-    private String handleTransactions(HttpExchange ex) {
-        return "{\"transactionManagerActive\":true,\"activeTransactions\":0,\"committedCount\":0,\"abortedCount\":0}";
+    private void handleTransactions(HttpExchange ex) throws Exception {
+        ObjectNode response = mapper.createObjectNode()
+                .put("transactionManagerActive", true)
+                .put("activeTransactions", 0)
+                .put("committedCount", 0)
+                .put("abortedCount", 0);
+        sendJsonResponse(ex, 200, response);
     }
 
-    private String handleMetrics(HttpExchange ex) {
+    private void handleMetrics(HttpExchange ex) throws Exception {
         se.mouaz.aegisdb.observability.AegisMetrics metrics = se.mouaz.aegisdb.observability.AegisTelemetry.metricsFor(node.nodeId());
         node.raftNode().ifPresent(raft -> {
             metrics.setCurrentTerm(raft.currentTerm());
@@ -185,37 +205,60 @@ public class ManagementHttpServer implements AutoCloseable {
         String accept = ex.getRequestHeaders().getFirst("Accept");
         if (accept != null && accept.contains("application/json")) {
             long uptime = (System.currentTimeMillis() - startedAt) / 1000;
-            return String.format("{\"nodeId\":\"%s\",\"uptime_seconds\":%d,\"requests_total\":%d,\"p99_latency_ms\":%.2f}",
-                    node.nodeId(), uptime, metrics.getRequestCount(), metrics.getP99LatencyMs());
+            ObjectNode response = mapper.createObjectNode()
+                    .put("nodeId", node.nodeId().value())
+                    .put("uptime_seconds", uptime)
+                    .put("requests_total", metrics.getRequestCount())
+                    .put("p99_latency_ms", metrics.getP99LatencyMs());
+            sendJsonResponse(ex, 200, response);
+            return;
         }
 
         // Default to Prometheus text exposition format for scrapers
+        String prometheusData = metrics.exportPrometheusText();
+        byte[] bytes = prometheusData.getBytes(StandardCharsets.UTF_8);
         ex.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
-        return metrics.exportPrometheusText();
+        ex.sendResponseHeaders(200, bytes.length);
+        try (OutputStream os = ex.getResponseBody()) {
+            os.write(bytes);
+        }
     }
 
-    private String handleAdminSnapshot(HttpExchange ex) {
+    private void handleAdminSnapshot(HttpExchange ex) throws Exception {
         if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
-            return "{\"error\":\"POST required\"}";
+            sendError(ex, 405, "Method Not Allowed: POST required");
+            return;
         }
         log.info("Admin triggered snapshot compaction on node {}", node.nodeId());
-        return "{\"success\":true,\"message\":\"Snapshot triggered successfully\"}";
+        ObjectNode response = mapper.createObjectNode()
+                .put("success", true)
+                .put("message", "Snapshot triggered successfully");
+        sendJsonResponse(ex, 200, response);
     }
 
-    private String handleAdminStepDown(HttpExchange ex) {
+    private void handleAdminStepDown(HttpExchange ex) throws Exception {
         if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
-            return "{\"error\":\"POST required\"}";
+            sendError(ex, 405, "Method Not Allowed: POST required");
+            return;
         }
         log.info("Admin requested leader step down on node {}", node.nodeId());
         node.raftNode().ifPresent(r -> r.electionTimer().reset());
-        return "{\"success\":true,\"message\":\"Leader step down initiated\"}";
+        ObjectNode response = mapper.createObjectNode()
+                .put("success", true)
+                .put("message", "Leader step down initiated");
+        sendJsonResponse(ex, 200, response);
     }
 
-    private void sendResponse(HttpExchange exchange, int statusCode, String responseBody) throws IOException {
-        byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
-        if (!exchange.getResponseHeaders().containsKey("Content-Type")) {
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-        }
+    private void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
+        ObjectNode error = mapper.createObjectNode()
+                .put("error", message)
+                .put("status", statusCode);
+        sendJsonResponse(exchange, statusCode, error);
+    }
+
+    private void sendJsonResponse(HttpExchange exchange, int statusCode, Object body) throws IOException {
+        byte[] bytes = mapper.writeValueAsBytes(body);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.sendResponseHeaders(statusCode, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
@@ -224,6 +267,6 @@ public class ManagementHttpServer implements AutoCloseable {
 
     @FunctionalInterface
     private interface EndpointHandler {
-        String handle(HttpExchange exchange) throws Exception;
+        void handle(HttpExchange exchange) throws Exception;
     }
 }
