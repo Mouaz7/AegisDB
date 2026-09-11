@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Following the implementation of Sharding and Multi-Raft Routing in Sprint 8 (ADR 0008), AegisDB requires cross-shard atomic transactions spanning multiple discrete Raft consensus groups per Master Project Plan §4, §5, §10, §11, §12, §14, §17, §18 & §20 (Sprint 9 / US015; Milestone M4 Gate).
+Following the implementation of Sharding and Multi-Raft Routing in Phase 8 (ADR 0008), AegisDB requires cross-shard atomic transactions spanning multiple discrete Raft consensus groups per Master Project Plan §4, §5, §10, §11, §12, §14, §17, §18 & §20 (Phase 9 / US015; Milestone M4 Gate).
 
 Key requirements:
 1. **Atomic Multi-Shard Commit & Rollback:** All operations across participating shards must commit together or abort cleanly with zero partial updates.

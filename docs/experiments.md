@@ -1,6 +1,6 @@
 # AegisDB: Research Benchmarks & Empirical Evaluation
 
-This document outlines the reproducible research evaluation methodology, research questions, and measurement results for **AegisDB**, conforming to **Master Project Plan §14, §15, §20 & §21 (Sprint 11)**.
+This document outlines the reproducible research evaluation methodology, research questions, and measurement results for **AegisDB**, conforming to **Master Project Plan §14, §15, §20 & §21 (Phase 11)**.
 
 ---
 
@@ -58,7 +58,7 @@ mvn exec:java -pl aegisdb_benchmark \
 
 ### Running the Live Interactive Demonstration
 ```bash
-./scripts/run-sprint11-demo.sh
+./scripts/run-phase11-demo.sh
 ```
 
 ### Generating Publication Graphs

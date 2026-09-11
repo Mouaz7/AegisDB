@@ -103,8 +103,8 @@ To ensure mathematical safety without false positives:
 
 ## 6. Single-Shard Transactions & 2PC Roadmap
 
-In Sprint 8:
+In Phase 8:
 - Single-shard transactions can be executed on any individual shard via `client.beginTransaction(shardId, level)`.
 - If an application attempts cross-shard operations within a single transaction, `ShardedAegisDbClient` safely guards and rejects the operation:
-  > *"Cross-shard distributed transactions require Two-Phase Commit (Sprint 9)."*
-- In **Sprint 9**, the `DistributedTransactionCoordinator` will build on this sharding foundation to coordinate atomic cross-shard commits using Two-Phase Commit (2PC).
+  > *"Cross-shard distributed transactions require Two-Phase Commit (Phase 9)."*
+- In **Phase 9**, the `DistributedTransactionCoordinator` will build on this sharding foundation to coordinate atomic cross-shard commits using Two-Phase Commit (2PC).

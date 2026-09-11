@@ -21,7 +21,7 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-@DisplayName("Sprint 2 Acceptance Criteria - Raft Election over Real gRPC")
+@DisplayName("Phase 2 Acceptance Criteria - Raft Election over Real gRPC")
 class GrpcThreeNodeElectionTest {
 
     private RaftNode node1;

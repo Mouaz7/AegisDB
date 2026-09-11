@@ -30,7 +30,7 @@ import java.util.concurrent.ExecutionException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@DisplayName("Sprint 1 Acceptance Criteria - Real gRPC Cluster")
+@DisplayName("Phase 1 Acceptance Criteria - Real gRPC Cluster")
 class GrpcThreeNodeClusterTest {
 
     private DatabaseNode node1;

@@ -1,7 +1,7 @@
 # AegisDB Multi-Version Concurrency Control (MVCC) Engine
 
 ## 1. Overview
-The `aegisdb_mvcc` module implements a high-throughput, lock-free Multi-Version Concurrency Control (MVCC) storage engine providing **Snapshot Isolation (SI)** as defined in Master Project Plan §9 & §17 (Sprint 6, US011).
+The `aegisdb_mvcc` module implements a high-throughput, lock-free Multi-Version Concurrency Control (MVCC) storage engine providing **Snapshot Isolation (SI)** as defined in Master Project Plan §9 & §17 (Phase 6, US011).
 
 In AegisDB:
 - **Readers never block writers.**
@@ -81,7 +81,7 @@ When a reading transaction accesses a key using a `Snapshot`, the version chain 
 | **Lost Update** | **Prevented** | First-Committer-Wins validation rejects writes if the key was committed after reader's start timestamp. |
 | **Non-Repeatable Read** | **Prevented** | Snapshot reads always return the version valid at the snapshot's timestamp regardless of subsequent commits. |
 | **Write-Write Conflict** | **Prevented** | Concurrent modifications to the same key are caught via active write locks and committed timestamp verification. |
-| **Write Skew** | **Documented** | Snapshot Isolation allows write skew on disjoint keys; Sprint 7 adds Serializable conflict validation. |
+| **Write Skew** | **Documented** | Snapshot Isolation allows write skew on disjoint keys; Phase 7 adds Serializable conflict validation. |
 
 ---
 
@@ -107,7 +107,7 @@ Garbage collection runs concurrently or on-demand without blocking active reads 
 
 ## 5. Raft State Machine Integration
 
-To support Raft log compaction and snapshot transfer (Sprint 5, US009/US010):
+To support Raft log compaction and snapshot transfer (Phase 5, US009/US010):
 - `MvccStore.serializeSnapshot()` exports all committed, visible, non-tombstone entries into a compact binary stream framed with CRC32 checksums:
   - Magic: `0x4D564343` ("MVCC")
   - Version: `1`
@@ -121,7 +121,7 @@ To support Raft log compaction and snapshot transfer (Sprint 5, US009/US010):
 
 ## 6. Verification and Testing
 
-All Sprint 6 acceptance criteria and Master Plan §9 requirements are verified by automated tests:
+All Phase 6 acceptance criteria and Master Plan §9 requirements are verified by automated tests:
 
 - `VisibilityRuleTest`: 8 tests verifying all 6 visibility edge cases and null safety.
 - `VersionChainTest`: 6 tests verifying chain traversal, commits, aborts, and pruning.

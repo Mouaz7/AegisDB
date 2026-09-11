@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Master automated research experiment suite runner.
  *
- * Conforms to Master Project Plan §17 (Sprint 11), §20 (Research Evaluation), and §21:
+ * Conforms to Master Project Plan §17 (Phase 11), §20 (Research Evaluation), and §21:
  * - Executes RQ1: Raft batching vs throughput/latency
  * - Executes RQ2: Leader failure and network delay recovery
  * - Executes RQ3: MVCC transaction contention & abort rates
@@ -28,7 +28,7 @@ public class ExperimentSuiteRunner {
 
     public static void main(String[] args) throws Exception {
         System.out.println("=======================================================================");
-        System.out.println("   AegisDB: Master Research Benchmark Suite (Sprint 11)");
+        System.out.println("   AegisDB: Master Research Benchmark Suite (Phase 11)");
         System.out.println("   Evaluating Research Questions RQ1, RQ2, and RQ3");
         System.out.println("   Master Project Plan §15, §17, §20 & §21");
         System.out.println("=======================================================================\n");

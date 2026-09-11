@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 /**
- * Verifies Sprint 5 Acceptance Criteria:
+ * Verifies Phase 5 Acceptance Criteria:
  * US009: As a database node, I want snapshots so the log does not grow without bound.
  * [AC2] Snapshot install via chunked InstallSnapshot RPC.
  * [AC5] Follower catch-up from snapshot: Slow/disconnected follower whose log entries

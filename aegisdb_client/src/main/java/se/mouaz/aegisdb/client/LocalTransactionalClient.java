@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 /**
- * Transactional AegisDbClient adapter backed by a local TransactionManager (Sprint 7, US012).
+ * Transactional AegisDbClient adapter backed by a local TransactionManager (Phase 7, US012).
  * Enables developers and integration tests to execute multi-operation transactions and atomic retries
  * through the unified AegisDbClient SDK.
  */

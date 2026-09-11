@@ -14,7 +14,7 @@
     <packaging>jar</packaging>
 
     <name>AegisDB Benchmarking and Research Harness</name>
-    <description>Reproducible evaluation harness answering RQ1 (batching), RQ2 (fault recovery), and RQ3 (MVCC contention) with JSON/CSV export (Sprint 11; US018)</description>
+    <description>Reproducible evaluation harness answering RQ1 (batching), RQ2 (fault recovery), and RQ3 (MVCC contention) with JSON/CSV export (Phase 11; US018)</description>
 
     <dependencies>
         <dependency>

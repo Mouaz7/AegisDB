@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-AegisDB requires high-throughput, concurrent read/write transactional capability beyond single-version locking (Master Plan §9 & §17 - Sprint 6 / US011). In traditional 2-Phase Locking (2PL), readers acquire shared locks and writers acquire exclusive locks. Under high read/write contention, readers block writers and writers block readers, leading to lock convoying, high tail latency, and potential deadlocks.
+AegisDB requires high-throughput, concurrent read/write transactional capability beyond single-version locking (Master Plan §9 & §17 - Phase 6 / US011). In traditional 2-Phase Locking (2PL), readers acquire shared locks and writers acquire exclusive locks. Under high read/write contention, readers block writers and writers block readers, leading to lock convoying, high tail latency, and potential deadlocks.
 
 To achieve superior scalability and predictable tail latency under concurrent workloads, AegisDB adopts **Multi-Version Concurrency Control (MVCC)** with **Snapshot Isolation (SI)**.
 
@@ -62,4 +62,4 @@ Key design requirements:
 
 ### Negative
 - Multi-version chains consume additional heap memory until garbage collection reclaims obsolete historical nodes.
-- Under pure Snapshot Isolation, transactions modifying disjoint keys based on overlapping reads may experience write skew (to be augmented with serializable conflict validation in Sprint 7).
+- Under pure Snapshot Isolation, transactions modifying disjoint keys based on overlapping reads may experience write skew (to be augmented with serializable conflict validation in Phase 7).

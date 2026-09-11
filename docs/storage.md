@@ -1,7 +1,7 @@
 # AegisDB Storage & Durability Engine
 
 > **Durable Write-Ahead Logging (WAL), Consensus Metadata Persistence, and Crash Recovery**
-> Sprint 4 Deliverable (US007 & US008)
+> Phase 4 Deliverable (US007 & US008)
 
 ---
 

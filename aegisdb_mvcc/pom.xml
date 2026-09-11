@@ -12,7 +12,7 @@
 
     <artifactId>aegisdb_mvcc</artifactId>
     <name>AegisDB MVCC</name>
-    <description>Multi-Version Concurrency Control (MVCC) and Snapshot Isolation (Sprint 6)</description>
+    <description>Multi-Version Concurrency Control (MVCC) and Snapshot Isolation (Phase 6)</description>
 
     <dependencies>
         <dependency>

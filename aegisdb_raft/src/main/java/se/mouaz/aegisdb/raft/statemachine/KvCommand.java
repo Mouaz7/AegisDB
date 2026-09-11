@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
- * Command representation for Key-Value store operations replicated via Raft (Sprint 5; US009, US010).
+ * Command representation for Key-Value store operations replicated via Raft (Phase 5; US009, US010).
  */
 public record KvCommand(OpType opType, String key, byte[] value) {
 

@@ -14,7 +14,7 @@
     <packaging>jar</packaging>
 
     <name>AegisDB Observability and Telemetry</name>
-    <description>OpenTelemetry metrics, distributed tracing, Prometheus export, and cluster operational telemetry (Sprint 11; US019)</description>
+    <description>OpenTelemetry metrics, distributed tracing, Prometheus export, and cluster operational telemetry (Phase 11; US019)</description>
 
     <dependencies>
         <dependency>

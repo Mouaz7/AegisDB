@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /**
  * Storage contract for the Raft log (Section 18).
- * Implemented in-memory by RaftLog and prepared for WAL persistence in Sprint 4.
+ * Implemented in-memory by RaftLog and prepared for WAL persistence in Phase 4.
  */
 public interface RaftLogRepository {
     long lastLogIndex();

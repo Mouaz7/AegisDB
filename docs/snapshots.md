@@ -1,7 +1,7 @@
 # AegisDB Snapshots & Replicated Key-Value Store
 
 > **Log Compaction, Point-in-Time Checkpointing, InstallSnapshot RPC, and Replicated KV State Machine**
-> Sprint 5 Deliverable (US009 & US010; Milestone M2 Gate)
+> Phase 5 Deliverable (US009 & US010; Milestone M2 Gate)
 
 ---
 

@@ -29,7 +29,7 @@ import java.util.concurrent.ExecutionException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@DisplayName("Sprint 1 Acceptance Criteria - InMemory Cluster")
+@DisplayName("Phase 1 Acceptance Criteria - InMemory Cluster")
 class InMemoryThreeNodeClusterTest {
 
     private DatabaseNode nodeA;

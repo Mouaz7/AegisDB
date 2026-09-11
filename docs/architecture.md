@@ -91,7 +91,7 @@ The `aegisdb_transaction` module provides atomic, single-shard ACID transactions
 
 ## 5. Multi-Raft Sharding & Query Routing Architecture
 
-Sprint 8 introduces horizontal sharding and dynamic query routing via Multi-Raft consensus groups:
+Phase 8 introduces horizontal sharding and dynamic query routing via Multi-Raft consensus groups:
 
 - **MurmurHash3 Partitioning:** Pure-Java 32-bit MurmurHash3 algorithm deterministically maps keys across shards ($\text{floorMod}(\text{hash}(\text{key}), \text{shardCount})$) with uniform distribution ($\pm 5\%$ deviation).
 - **Replication Groups:** Each shard operates as an independent Raft consensus group (`ReplicationGroup`) maintaining isolated logs, terms, and state machines.
@@ -103,7 +103,7 @@ Sprint 8 introduces horizontal sharding and dynamic query routing via Multi-Raft
 
 ## 6. Distributed Transactions & Two-Phase Commit (2PC) Architecture
 
-Sprint 9 establishes atomic cross-shard distributed transactions (Milestone M4 Gate):
+Phase 9 establishes atomic cross-shard distributed transactions (Milestone M4 Gate):
 
 - **2PC State Machine:** Explicit transitions (`INIT -> PREPARING -> COMMIT_DECIDED / ABORT_DECIDED -> COMMITTED / ABORTED`) enforced by `DistributedTransactionCoordinator`.
 - **Durable Coordinator WAL:** Decisions are durably appended to disk via `DurableCoordinatorLog` using binary framing (`0xAE6120C0` magic header, CRC32 checksums, and synchronous `fsync`).
@@ -115,7 +115,7 @@ Sprint 9 establishes atomic cross-shard distributed transactions (Milestone M4 G
 
 ## 7. Chaos Engineering & Security Hardening Architecture
 
-Sprint 10 introduces systematic fault injection, continuous safety assertion, and management plane hardening:
+Phase 10 introduces systematic fault injection, continuous safety assertion, and management plane hardening:
 
 - **Composable Fault Injection (`FaultyTransport`):** Decorates the abstract `RaftTransport` layer to introduce deterministic packet drops, latency jitter, duplications, and network partitions without touching core consensus algorithms.
 - **Cluster Orchestration (`ChaosOrchestrator`):** Simulates leader kills, follower crashes, split-brain majority/minority partitions, and dynamic network healing.

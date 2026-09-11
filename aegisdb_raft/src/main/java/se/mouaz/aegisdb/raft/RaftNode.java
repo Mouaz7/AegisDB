@@ -353,7 +353,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
     }
 
     /**
-     * Executes a client command against the state machine, waiting for commit and applying (Sprint 5; US009, US010).
+     * Executes a client command against the state machine, waiting for commit and applying (Phase 5; US009, US010).
      */
     public CompletableFuture<byte[]> executeClientCommand(byte[] command) {
         if (!running.get()) {

@@ -35,4 +35,4 @@ Without deterministic file framing, checksum validation, and explicit fsync poli
 - Memory lookups remain $O(1)$ via in-memory `StorageIndex`.
 
 ### Negative
-- Synchronous `force(true)` per write introduces disk I/O latency (mitigated in future sprints by write batching).
+- Synchronous `force(true)` per write introduces disk I/O latency (mitigated in future phases by write batching).

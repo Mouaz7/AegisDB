@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Standard implementation of AegisDbClient supporting automatic leader discovery,
- * transparent redirects on NotLeaderException, and exponential backoff retry (Sprint 5; AC4, Milestone M2).
+ * transparent redirects on NotLeaderException, and exponential backoff retry (Phase 5; AC4, Milestone M2).
  */
 public class DefaultAegisDbClient implements AegisDbClient {
     private static final Logger log = LoggerFactory.getLogger(DefaultAegisDbClient.class);

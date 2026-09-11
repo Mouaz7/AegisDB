@@ -37,16 +37,16 @@ Milestone M4 establishes AegisDB's ability to coordinate atomic, serializable di
 | `DistributedTransactionArchitectureTest` | ArchUnit Clean Architecture | 3 | 0 | ✅ PASS |
 | `ShardedAegisDbClientDistributedTransactionTest` | Client SDK Integration | 3 | 0 | ✅ PASS |
 | `CrossShardTransactionMilestoneM4Test` | Milestone M4 Gate Invariant Suite | 4 | 0 | ✅ PASS |
-| **Total Sprint 9 Gate Tests** | | **26** | **0** | ✅ **100% PASS** |
+| **Total Phase 9 Gate Tests** | | **26** | **0** | ✅ **100% PASS** |
 
 ---
 
 ## 3. Live Demonstration
 
-The milestone gate was demonstrated via `Sprint9Demo` and automation script `./scripts/run-sprint9-demo.sh`:
+The milestone gate was demonstrated via `Phase9Demo` and automation script `./scripts/run-phase9-demo.sh`:
 ```text
 =======================================================================
-     AegisDB - Sprint 9 Live Demonstration
+     AegisDB - Phase 9 Live Demonstration
      Cross-Shard Distributed Transactions & Two-Phase Commit (2PC)
      Milestone M4 Gate | US015 | Master Project Plan §10, §20
 =======================================================================
@@ -84,7 +84,7 @@ The milestone gate was demonstrated via `Sprint9Demo` and automation script `./s
 
 =======================================================================
   ✅ MILESTONE M4 GATE VERIFIED: FINANCIAL CONSERVATION PRESERVED (3000)
-  ✅ ALL SPRINT 9 ACCEPTANCE CRITERIA SATISFIED (US015)
+  ✅ ALL PHASE 9 ACCEPTANCE CRITERIA SATISFIED (US015)
 =======================================================================
 ```
 

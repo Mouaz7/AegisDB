@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-@DisplayName("Sprint 3 Acceptance Criteria - Raft Log Replication over Real gRPC (US006)")
+@DisplayName("Phase 3 Acceptance Criteria - Raft Log Replication over Real gRPC (US006)")
 class GrpcLogReplicationTest {
 
     private RaftNode node1;

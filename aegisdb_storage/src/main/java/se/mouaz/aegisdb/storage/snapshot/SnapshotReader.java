@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * Contract for reading point-in-time state machine snapshots (Master Project Plan §8, prepared for Sprint 5).
+ * Contract for reading point-in-time state machine snapshots (Master Project Plan §8, prepared for Phase 5).
  */
 public interface SnapshotReader extends Closeable {
 

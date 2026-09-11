@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Formal Milestone M3 Gate Verification Test (Master Project Plan §20):
- * "Milestone M3 after Sprint 7: MVCC and single-shard transactions preserve transaction invariants under concurrency."
+ * "Milestone M3 after Phase 7: MVCC and single-shard transactions preserve transaction invariants under concurrency."
  */
 class SingleShardTransactionMilestoneM3Test {
     private static final Logger log = LoggerFactory.getLogger(SingleShardTransactionMilestoneM3Test.class);

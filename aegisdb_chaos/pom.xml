@@ -14,7 +14,7 @@
     <packaging>jar</packaging>
 
     <name>AegisDB Chaos Engineering and Fault Injection</name>
-    <description>FaultyTransport decorator, network partitions, node crashes, packet loss, delays, and continuous invariant monitoring (Sprint 10; US016)</description>
+    <description>FaultyTransport decorator, network partitions, node crashes, packet loss, delays, and continuous invariant monitoring (Phase 10; US016)</description>
 
     <dependencies>
         <dependency>

@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 /**
- * Verifies Sprint 5 & US009 Acceptance Criteria:
+ * Verifies Phase 5 & US009 Acceptance Criteria:
  * [AC1] Snapshot metadata, framing, and CRC32 checksum.
  * [AC6] Persistent state recovery: Node recovers from disk snapshot + subsequent WAL entries.
  */

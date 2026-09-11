@@ -63,7 +63,7 @@ public class RecoveryManager {
         NodeId recoveredVotedFor = metaOpt.map(PersistentRaftMetadata::votedFor).orElse(null);
         log.info("1/5: Loaded persistent Raft metadata: term={}, votedFor={}", recoveredTerm, recoveredVotedFor);
 
-        // 2. Load latest valid snapshot (Sprint 5)
+        // 2. Load latest valid snapshot (Phase 5)
         long snapshotIndex = 0L;
         long snapshotTerm = 0L;
         byte[] snapshotData = null;

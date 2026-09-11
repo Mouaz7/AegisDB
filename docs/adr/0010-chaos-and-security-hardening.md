@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Following the completion of Cross-Shard Distributed Transactions and Milestone M4 in Sprint 9 (ADR 0009), AegisDB requires resilient fault tolerance under arbitrary network/node failures, as well as operational boundary defense and security controls per Master Project Plan §3, §4, §5, §10, §11, §12, §14, §15, §17, §18 & §20 (Sprint 10; US016, US017).
+Following the completion of Cross-Shard Distributed Transactions and Milestone M4 in Phase 9 (ADR 0009), AegisDB requires resilient fault tolerance under arbitrary network/node failures, as well as operational boundary defense and security controls per Master Project Plan §3, §4, §5, §10, §11, §12, §14, §15, §17, §18 & §20 (Phase 10; US016, US017).
 
 Key requirements:
 1. **Reproducible Fault Injection (US016)**: Researcher ability to deterministically inject message drops, artificial latency delays, packet duplications, and network partitions with seeded pseudo-randomness.

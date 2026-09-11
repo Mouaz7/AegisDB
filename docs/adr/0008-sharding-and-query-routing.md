@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Following the delivery of single-shard transactions in Sprint 7 (ADR 0007), AegisDB requires horizontal scale-out architecture to partition write throughput and state across multiple discrete Raft consensus groups per Master Project Plan §4, §5, §10, §17, §18 & §20 (Sprint 8 / US013, US014).
+Following the delivery of single-shard transactions in Phase 7 (ADR 0007), AegisDB requires horizontal scale-out architecture to partition write throughput and state across multiple discrete Raft consensus groups per Master Project Plan §4, §5, §10, §17, §18 & §20 (Phase 8 / US013, US014).
 
 Key requirements:
 1. **Multi-Raft Consensus Topology:** Shards must be governed by independent Raft consensus groups (`ReplicationGroup`), preventing a single consensus log from bottlenecking cluster throughput.
@@ -45,4 +45,4 @@ Key requirements:
 - **Uniform Distribution:** Verified within $\pm 5\%$ of ideal distribution across 30,000+ keys.
 
 ### Negative / Trade-offs
-- Multi-shard atomic transactions require distributed coordination (addressed in Sprint 9 via 2PC).
+- Multi-shard atomic transactions require distributed coordination (addressed in Phase 9 via 2PC).

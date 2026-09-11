@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.awaitility.Awaitility.await;
 
 /**
- * AegisDB Comprehensive Stress & Performance Benchmark Suite (Sprints 1 - 6).
+ * AegisDB Comprehensive Stress & Performance Benchmark Suite (Phases 1 - 6).
  * <p>
  * Evaluates high-concurrency invariants, write conflict resolution, garbage collection,
  * write-ahead log (WAL) persistence, and multi-node Raft replication under sustained load.
@@ -86,7 +86,7 @@ public class StressBenchmarkSuite {
     public static void main(String[] args) throws Exception {
         System.out.println("=======================================================================");
         System.out.println("     AegisDB - Comprehensive Stress & Performance Benchmark Suite");
-        System.out.println("     Evaluating Modules: Sprints 1 to 6 Under Concurrency & Load");
+        System.out.println("     Evaluating Modules: Phases 1 to 6 Under Concurrency & Load");
         System.out.println("     Master Project Plan §14, §15, §20 & §21");
         System.out.println("=======================================================================\n");
 
@@ -110,8 +110,8 @@ public class StressBenchmarkSuite {
         System.out.println("\n▶ [4/5] Running 3-Node Raft Consensus Replication Benchmark...");
         results.add(benchmarkRaftReplication(1_000));
 
-        // 5. Single-Shard Transaction Engine & Concurrency Invariant (Sprint 7)
-        System.out.println("\n▶ [5/5] Running Single-Shard Transaction & Invariant Benchmarks (Sprint 7)...");
+        // 5. Single-Shard Transaction Engine & Concurrency Invariant (Phase 7)
+        System.out.println("\n▶ [5/5] Running Single-Shard Transaction & Invariant Benchmarks (Phase 7)...");
         results.add(benchmarkSingleShardTransactionThroughput(16, 5_000));
         results.add(benchmarkTransactionDurableLogging(5_000));
 
@@ -553,7 +553,7 @@ public class StressBenchmarkSuite {
     }
 
     /**
-     * Benchmark 5A: Single-Shard Transaction Throughput & Bank Invariant under High Contention (Sprint 7).
+     * Benchmark 5A: Single-Shard Transaction Throughput & Bank Invariant under High Contention (Phase 7).
      */
     public static BenchmarkResult benchmarkSingleShardTransactionThroughput(int threadCount, int totalTransfers) throws Exception {
         MvccStore store = new MvccStore();
@@ -635,7 +635,7 @@ public class StressBenchmarkSuite {
     }
 
     /**
-     * Benchmark 5B: Durable TransactionLog Append Throughput with CRC32 framing (Sprint 7).
+     * Benchmark 5B: Durable TransactionLog Append Throughput with CRC32 framing (Phase 7).
      */
     public static BenchmarkResult benchmarkTransactionDurableLogging(int recordCount) throws Exception {
         Path tempLog = Files.createTempFile("tx-benchmark-wal", ".log");

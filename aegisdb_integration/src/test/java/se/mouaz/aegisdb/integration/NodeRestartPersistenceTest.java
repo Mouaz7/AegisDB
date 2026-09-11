@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 /**
- * Verifies Sprint 4 Acceptance Criteria:
+ * Verifies Phase 4 Acceptance Criteria:
  * US007: As a database, I want committed data to survive crashes.
  * US008: As a Raft node, I want term/vote state durable across restart.
  */

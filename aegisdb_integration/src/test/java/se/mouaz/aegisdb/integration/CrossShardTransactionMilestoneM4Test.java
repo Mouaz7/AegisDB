@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Formal Milestone M4 Gate Verification Test (Master Project Plan §10, §20; US015):
- * "Milestone M4 after Sprint 9: Cross-shard transactions commit or abort atomically via 2PC across multiple Raft groups."
+ * "Milestone M4 after Phase 9: Cross-shard transactions commit or abort atomically via 2PC across multiple Raft groups."
  *
  * Verifies:
  * 1. Cross-shard atomic commit and abort across 3 distinct shards.

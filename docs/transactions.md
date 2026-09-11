@@ -1,7 +1,7 @@
 # AegisDB Single-Shard Transaction Engine
 
 ## 1. Overview
-The `aegisdb_transaction` module implements an ACID-compliant Single-Shard Transaction Engine providing **Snapshot Isolation (SI)** and optional **Serializable Snapshot Isolation (SSI)** per **Master Project Plan §5, §9, §11, §14, §17, §18 & §20 (Sprint 7, US012; Milestone M3 Gate)**.
+The `aegisdb_transaction` module implements an ACID-compliant Single-Shard Transaction Engine providing **Snapshot Isolation (SI)** and optional **Serializable Snapshot Isolation (SSI)** per **Master Project Plan §5, §9, §11, §14, §17, §18 & §20 (Phase 7, US012; Milestone M3 Gate)**.
 
 In AegisDB:
 - **Atomicity:** All mutations in a transaction are committed as a single atomic unit or rolled back completely.
@@ -81,7 +81,7 @@ stateDiagram-v2
 
 - **ACTIVE:** The transaction is actively reading and buffering mutations in its `WriteSet`.
 - **PREPARING:** Preconditions, TTL timeout, and concurrency conflicts are evaluated by `CommitValidator`.
-- **PREPARED:** All validation checks passed; write locks are reserved. Prepares single-shard transactions for Sprint 9 Two-Phase Commit (2PC).
+- **PREPARED:** All validation checks passed; write locks are reserved. Prepares single-shard transactions for Phase 9 Two-Phase Commit (2PC).
 - **COMMITTED:** Mutations are atomically applied to `MvccStore`, logged to `TransactionLog`, and write locks are released.
 - **ABORTED:** Uncommitted changes are rolled back, write locks are freed, and the outcome is recorded.
 
@@ -165,7 +165,7 @@ The `DurableTransactionLog` persists lifecycle events using framed binary record
 
 ## 7. Bank Transfer Invariant Test (Master Plan §14)
 
-Under Sprint 7, the classic bank balance conservation experiment was conducted:
+Under Phase 7, the classic bank balance conservation experiment was conducted:
 - **Accounts:** $A = 1000, B = 1000, C = 1000$ (Total = $3000$).
 - **Workload:** 16 concurrent threads executing thousands of randomized transfers ($A \leftrightarrow B \leftrightarrow C$).
 - **Contention Handling:** `runInTransaction()` with automatic conflict detection, abort rollback, and exponential backoff retry.

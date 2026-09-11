@@ -12,7 +12,7 @@
 
     <artifactId>aegisdb_transaction</artifactId>
     <name>AegisDB Transaction Engine</name>
-    <description>Single-Shard Transactions, Read/Write Sets, Conflict Detection and Isolation (Sprint 7, US012)</description>
+    <description>Single-Shard Transactions, Read/Write Sets, Conflict Detection and Isolation (Phase 7, US012)</description>
 
     <dependencies>
         <dependency>

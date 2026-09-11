@@ -14,7 +14,7 @@
     <packaging>jar</packaging>
 
     <name>AegisDB Management and Security Hardening</name>
-    <description>Management API, RBAC Authentication, Rate Limiting, Input Validation, and Security Guardrails (Sprint 10; US017)</description>
+    <description>Management API, RBAC Authentication, Rate Limiting, Input Validation, and Security Guardrails (Phase 10; US017)</description>
 
     <dependencies>
         <dependency>

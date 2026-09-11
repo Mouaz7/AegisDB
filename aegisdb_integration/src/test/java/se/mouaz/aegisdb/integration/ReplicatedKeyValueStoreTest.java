@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 /**
- * Verifies Milestone M2 Gate and Sprint 5 Acceptance Criteria:
+ * Verifies Milestone M2 Gate and Phase 5 Acceptance Criteria:
  * US010: As a client, I want replicated key-value operations.
  * [AC3] KeyValueStateMachine (PUT/GET/DELETE, snapshot serialization/deserialization).
  * [AC4] Java SDK client module aegisdb_client (leader discovery, redirect/retry).

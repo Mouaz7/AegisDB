@@ -3,7 +3,7 @@ set -e
 
 echo "======================================================================="
 echo "  AegisDB: Run Comprehensive Stress & Performance Benchmark Suite"
-echo "  Evaluating Modules: Sprints 1 to 6 Under Concurrency & Load"
+echo "  Evaluating Modules: Phases 1 to 6 Under Concurrency & Load"
 echo "======================================================================="
 
 mvn exec:java \

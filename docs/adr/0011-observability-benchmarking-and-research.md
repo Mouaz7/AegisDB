@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Following the completion of Chaos Engineering and Security Hardening in Sprint 10 (ADR 0010), AegisDB requires production-grade observability and an automated, reproducible research benchmarking harness per Master Project Plan §3, §4, §5, §11, §15, §17, §18, §20, §21, and §26 (Sprint 11; US018, US019).
+Following the completion of Chaos Engineering and Security Hardening in Phase 10 (ADR 0010), AegisDB requires production-grade observability and an automated, reproducible research benchmarking harness per Master Project Plan §3, §4, §5, §11, §15, §17, §18, §20, §21, and §26 (Phase 11; US018, US019).
 
 Key requirements:
 1. **Non-Blocking Telemetry & Operational Metrics (US019)**:
@@ -43,7 +43,7 @@ Key requirements:
 - **Deterministic & Reproducible**: All research experiments are parameterized by deterministic seeds and hardware/JVM metadata.
 - **Production Observability**: Prometheus can scrape cluster nodes without additional sidecars.
 - **Zero Core Overhead**: If metrics or tracing fail or are omitted, Raft consensus and ACID transactions remain unaffected.
-- **Complete Master Plan Compliance**: All requirements of Sprint 11 and research evaluation (§20) are fulfilled.
+- **Complete Master Plan Compliance**: All requirements of Phase 11 and research evaluation (§20) are fulfilled.
 
 ### Negative / Trade-offs
 - In-memory percentile tracking retains recent latency samples up to a configured window bound (e.g. 5,000 samples) to prevent unbounded memory growth.

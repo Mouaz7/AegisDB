@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /**
- * Contract for creating point-in-time state machine snapshots (Master Project Plan §8, prepared for Sprint 5).
+ * Contract for creating point-in-time state machine snapshots (Master Project Plan §8, prepared for Phase 5).
  */
 public interface SnapshotWriter extends Closeable {
 

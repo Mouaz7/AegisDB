@@ -157,7 +157,7 @@ class MvccAnomalyTest {
         }
 
         // Under pure Snapshot Isolation, write skew occurs (both off call).
-        // (Sprint 7 will implement Serializable conflict validation to detect predicate write skews).
+        // (Phase 7 will implement Serializable conflict validation to detect predicate write skews).
         assertThat(new String(store.get("doctor:alice").get(), StandardCharsets.UTF_8)).isEqualTo("off_call");
         assertThat(new String(store.get("doctor:bob").get(), StandardCharsets.UTF_8)).isEqualTo("off_call");
     }

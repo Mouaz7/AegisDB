@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AegisDB Research Benchmark Plotting Script (Sprint 11)
+AegisDB Research Benchmark Plotting Script (Phase 11)
 Reads experiments/data/results.json and generates publication-ready research graphs.
 Master Project Plan §20 (RQ1, RQ2, RQ3) & §21
 """
