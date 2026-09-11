@@ -19,7 +19,8 @@ public record RecoveryResult(
         long recoveryDurationMs,
         long snapshotIndex,
         long snapshotTerm,
-        byte[] snapshotData
+        byte[] snapshotData,
+        se.mouaz.aegisdb.storage.wal.StorageIndex storageIndex
 ) {
     public RecoveryResult(
             long recoveredTerm,
@@ -28,9 +29,10 @@ public record RecoveryResult(
             long lastLogTerm,
             List<RaftLogEntry> replayedEntries,
             int repairedTornTailsCount,
-            long recoveryDurationMs
+            long recoveryDurationMs,
+            se.mouaz.aegisdb.storage.wal.StorageIndex storageIndex
     ) {
-        this(recoveredTerm, recoveredVotedFor, lastLogIndex, lastLogTerm, replayedEntries, repairedTornTailsCount, recoveryDurationMs, 0L, 0L, null);
+        this(recoveredTerm, recoveredVotedFor, lastLogIndex, lastLogTerm, replayedEntries, repairedTornTailsCount, recoveryDurationMs, 0L, 0L, null, storageIndex);
     }
 
     public Optional<NodeId> optionalVotedFor() {

@@ -12,6 +12,7 @@ import java.util.List;
 public interface TransactionLog extends Closeable {
     void logBegin(TransactionId txId, long timestamp);
     void logPrepare(TransactionId txId, long timestamp, WriteSet writeSet);
+    void logCommitDecided(TransactionId txId, long timestamp, WriteSet writeSet);
     void logCommit(TransactionId txId, long commitTimestamp, WriteSet writeSet);
     void logAbort(TransactionId txId, long timestamp);
     List<TransactionLogEntry> replay();

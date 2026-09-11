@@ -29,17 +29,20 @@ public class ElectionManager {
     private final BiConsumer<NodeId, RequestVoteRequest> requestVoteSender;
 
     private volatile VoteCounter currentElection;
+    private final se.mouaz.aegisdb.raft.log.RaftLog raftLog;
 
     public ElectionManager(RaftState state,
                            RaftTransport transport,
                            ClusterConfiguration clusterConfig,
                            ElectionTimer electionTimer,
+                           se.mouaz.aegisdb.raft.log.RaftLog raftLog,
                            Consumer<VoteCounter> onLeaderElected,
                            BiConsumer<NodeId, RequestVoteRequest> requestVoteSender) {
         this.state = Objects.requireNonNull(state, "state cannot be null");
         this.transport = Objects.requireNonNull(transport, "transport cannot be null");
         this.clusterConfig = Objects.requireNonNull(clusterConfig, "clusterConfig cannot be null");
         this.electionTimer = electionTimer;
+        this.raftLog = Objects.requireNonNull(raftLog, "raftLog cannot be null");
         this.onLeaderElected = onLeaderElected;
         this.requestVoteSender = requestVoteSender;
     }
@@ -75,7 +78,7 @@ public class ElectionManager {
         }
 
         // 4. Send RequestVote RPCs to all peers in parallel (§5.2)
-        RequestVoteRequest request = new RequestVoteRequest(localId, electionTerm, 0, 0);
+        RequestVoteRequest request = new RequestVoteRequest(localId, electionTerm, raftLog.lastLogIndex(), raftLog.lastLogTerm());
         Set<NodeId> peers = clusterConfig.members().keySet();
         for (NodeId peer : peers) {
             if (!peer.equals(localId)) {

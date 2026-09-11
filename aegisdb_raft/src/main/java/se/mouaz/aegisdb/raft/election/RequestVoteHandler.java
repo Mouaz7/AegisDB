@@ -19,10 +19,12 @@ public class RequestVoteHandler {
 
     private final RaftState state;
     private final ElectionTimer electionTimer;
+    private final se.mouaz.aegisdb.raft.log.RaftLog raftLog;
 
-    public RequestVoteHandler(RaftState state, ElectionTimer electionTimer) {
+    public RequestVoteHandler(RaftState state, ElectionTimer electionTimer, se.mouaz.aegisdb.raft.log.RaftLog raftLog) {
         this.state = Objects.requireNonNull(state, "state cannot be null");
         this.electionTimer = electionTimer;
+        this.raftLog = Objects.requireNonNull(raftLog, "raftLog cannot be null");
     }
 
     public RequestVoteResponse handleRequestVote(RequestVoteRequest request) {
@@ -50,9 +52,17 @@ public class RequestVoteHandler {
         boolean canVoteForCandidate = votedFor.isEmpty() || votedFor.get().equals(candidateId);
 
         if (canVoteForCandidate) {
-            // Log completeness check (prepared for Sprint 3 log verification; true if lastLogIndex/term is >=)
-            boolean logIsUpToDate = true; // In Sprint 2, all logs are 0
-            if (logIsUpToDate) {
+            long localLastLogTerm = raftLog.lastLogTerm();
+            long localLastLogIndex = raftLog.lastLogIndex();
+            long candidateLastLogTerm = request.lastLogTerm();
+            long candidateLastLogIndex = request.lastLogIndex();
+
+            boolean candidateLogIsUpToDate =
+                    candidateLastLogTerm > localLastLogTerm
+                    || (candidateLastLogTerm == localLastLogTerm
+                        && candidateLastLogIndex >= localLastLogIndex);
+
+            if (candidateLogIsUpToDate) {
                 RaftInvariants.checkVoteOncePerTerm(currentTerm, votedFor.orElse(null), candidateId);
                 state.persistent().setVotedFor(candidateId);
                 if (electionTimer != null) {

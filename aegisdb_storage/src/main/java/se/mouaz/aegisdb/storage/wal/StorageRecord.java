@@ -54,6 +54,18 @@ public record StorageRecord(
     public StorageRecord {
         Objects.requireNonNull(key, "key cannot be null (use empty array if absent)");
         Objects.requireNonNull(value, "value cannot be null (use empty array if absent)");
+        key = key.clone();
+        value = value.clone();
+    }
+
+    @Override
+    public byte[] key() {
+        return key.clone();
+    }
+
+    @Override
+    public byte[] value() {
+        return value.clone();
     }
 
     /**
@@ -142,6 +154,40 @@ public record StorageRecord(
 
         buf.flip();
         return buf;
+    }
+
+    /**
+     * Deserializes a StorageRecord from a ByteBuffer. The buffer's position must be at the start of the record.
+     */
+    public static StorageRecord deserialize(ByteBuffer buf) {
+        int magicNumber = buf.getInt();
+        short version = buf.getShort();
+        byte recordType = buf.get();
+        int recordLength = buf.getInt();
+        long checksum = Integer.toUnsignedLong(buf.getInt());
+        long sequenceNumber = buf.getLong();
+        long timestamp = buf.getLong();
+        long term = buf.getLong();
+        
+        int keyLen = buf.getInt();
+        byte[] key = new byte[keyLen];
+        buf.get(key);
+        
+        int valLen = buf.getInt();
+        byte[] value = new byte[valLen];
+        buf.get(value);
+        
+        return new StorageRecord(
+                magicNumber,
+                version,
+                recordType,
+                checksum,
+                sequenceNumber,
+                timestamp,
+                term,
+                key,
+                value
+        );
     }
 
     /**

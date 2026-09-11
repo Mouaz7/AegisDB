@@ -41,10 +41,16 @@ class StorageRecordTest {
         StorageRecord record = StorageRecord.createEntry(10L, 3L, 1000L, key, val);
 
         assertThat(record.isValidChecksum()).isTrue();
-
-        // Alter key in place
-        record.key()[0] = 'X';
-        assertThat(record.isValidChecksum()).isFalse();
+        // Serialize the record
+        ByteBuffer serialized = record.serialize();
+        
+        // Alter the serialized payload (corrupt the key data which starts after the 43 byte header)
+        serialized.put(44, (byte) 'X');
+        
+        // Rewind and parse again
+        serialized.rewind();
+        StorageRecord corruptedRecord = StorageRecord.deserialize(serialized);
+        assertThat(corruptedRecord.isValidChecksum()).isFalse();
     }
 
     @Test

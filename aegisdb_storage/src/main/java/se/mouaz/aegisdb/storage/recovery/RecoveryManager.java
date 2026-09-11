@@ -134,7 +134,8 @@ public class RecoveryManager {
                 duration,
                 snapshotIndex,
                 snapshotTerm,
-                snapshotData
+                snapshotData,
+                scanResult.storageIndex()
         );
     }
 }

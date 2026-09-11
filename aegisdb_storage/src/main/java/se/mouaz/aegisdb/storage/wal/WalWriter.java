@@ -19,6 +19,10 @@ public class WalWriter implements Closeable {
         return walManager;
     }
 
+    public void open() throws IOException {
+        walManager.openWriter();
+    }
+
     public StorageIndex.IndexEntry append(StorageRecord record) throws IOException {
         return walManager.append(record);
     }

@@ -27,8 +27,9 @@ class DurableRaftLogTest {
         WalConfig config = WalConfig.of(tempDir);
         StorageIndex index = new StorageIndex();
 
-        try (WalManager walManager = new WalManager(config);
-             WalWriter writer = new WalWriter(walManager)) {
+        try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
+            try (WalWriter writer = new WalWriter(walManager)) {
 
             DurableRaftLog log = new DurableRaftLog(writer, index);
 
@@ -50,6 +51,7 @@ class DurableRaftLogTest {
             assertThat(index.contains(3L)).isFalse();
             assertThat(index.contains(4L)).isFalse();
             assertThat(index.contains(2L)).isTrue();
+        }
         }
     }
 }

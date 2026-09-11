@@ -28,6 +28,7 @@ class WalManagerTest {
         StorageIndex storageIndex = new StorageIndex();
 
         try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
             for (int i = 1; i <= 10; i++) {
                 StorageRecord rec = StorageRecord.createEntry(
                         i,
@@ -64,6 +65,7 @@ class WalManagerTest {
         StorageIndex storageIndex = new StorageIndex();
 
         try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
             for (int i = 1; i <= 8; i++) {
                 StorageRecord rec = StorageRecord.createEntry(
                         i,

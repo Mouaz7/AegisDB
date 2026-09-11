@@ -379,6 +379,7 @@ public class StressBenchmarkSuite {
             long totalBytes = 0;
             long tStart = System.nanoTime();
             try (WalManager wal = new WalManager(config)) {
+                wal.openWriter();
                 for (int i = 1; i <= recordCount; i++) {
                     long t0 = System.nanoTime();
                     StorageRecord rec = StorageRecord.createEntry(i, 1L, System.currentTimeMillis(), key, value);
@@ -419,6 +420,7 @@ public class StressBenchmarkSuite {
 
             byte[] payload = "{\"transaction\": \"deposit\", \"amount\": 500}".getBytes(StandardCharsets.UTF_8);
             try (WalManager wal = new WalManager(config)) {
+                wal.openWriter();
                 for (int i = 1; i <= recordCount; i++) {
                     wal.append(StorageRecord.createEntry(i, 1L, System.currentTimeMillis(), ("k" + i).getBytes(StandardCharsets.UTF_8), payload));
                 }

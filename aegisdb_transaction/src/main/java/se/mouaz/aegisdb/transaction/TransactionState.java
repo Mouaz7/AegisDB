@@ -10,7 +10,10 @@ public enum TransactionState {
     ACTIVE,
     PREPARING,
     PREPARED,
+    COMMIT_DECIDED,
+    COMMITTING,
     COMMITTED,
+    ABORTING,
     ABORTED;
 
     public boolean isTerminal() {
@@ -22,9 +25,12 @@ public enum TransactionState {
             return true; // idempotent self-transition
         }
         return switch (this) {
-            case ACTIVE -> next == PREPARING || next == ABORTED;
-            case PREPARING -> next == PREPARED || next == COMMITTED || next == ABORTED;
-            case PREPARED -> next == COMMITTED || next == ABORTED;
+            case ACTIVE -> next == PREPARING || next == ABORTING || next == ABORTED;
+            case PREPARING -> next == PREPARED || next == COMMIT_DECIDED || next == ABORTING || next == ABORTED;
+            case PREPARED -> next == COMMIT_DECIDED || next == ABORTING || next == ABORTED;
+            case COMMIT_DECIDED -> next == COMMITTING || next == COMMITTED;
+            case COMMITTING -> next == COMMITTED;
+            case ABORTING -> next == ABORTED;
             case COMMITTED, ABORTED -> false;
         };
     }

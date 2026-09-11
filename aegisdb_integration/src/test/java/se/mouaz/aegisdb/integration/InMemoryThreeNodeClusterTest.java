@@ -58,7 +58,7 @@ class InMemoryThreeNodeClusterTest {
                 .addMember(idC, epC)
                 .build();
 
-        NetworkConfiguration netConfig = new NetworkConfiguration(Duration.ofMillis(300), Duration.ofMillis(300));
+        NetworkConfiguration netConfig = new NetworkConfiguration(Duration.ofMillis(300), Duration.ofMillis(300), false, null, null, null);
 
         NodeConfiguration configA = NodeConfiguration.builder()
                 .nodeId(idA).endpoint(epA).networkConfig(netConfig)

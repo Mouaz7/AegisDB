@@ -31,6 +31,7 @@ class WalCorruptionDetectionTest {
         WalConfig config = WalConfig.of(tempDir);
 
         try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
             walManager.append(StorageRecord.createEntry(
                     1L, 1L, System.currentTimeMillis(), "account:1".getBytes(StandardCharsets.UTF_8), "1000".getBytes(StandardCharsets.UTF_8)
             ));
@@ -46,6 +47,7 @@ class WalCorruptionDetectionTest {
         Files.write(segment.path(), fileBytes);
 
         try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
             WalRecoveryManager recoveryManager = new WalRecoveryManager(walManager);
             assertThatThrownBy(recoveryManager::scanAndRecover)
                     .isInstanceOf(CorruptedWalException.class)
@@ -59,6 +61,7 @@ class WalCorruptionDetectionTest {
         WalConfig config = WalConfig.of(tempDir);
 
         try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
             walManager.append(StorageRecord.createEntry(1L, 1L, System.currentTimeMillis(), "data".getBytes(StandardCharsets.UTF_8)));
         }
 
@@ -68,6 +71,7 @@ class WalCorruptionDetectionTest {
         Files.write(segment.path(), fileBytes);
 
         try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
             WalRecoveryManager recoveryManager = new WalRecoveryManager(walManager);
             assertThatThrownBy(recoveryManager::scanAndRecover)
                     .isInstanceOf(CorruptedWalException.class)

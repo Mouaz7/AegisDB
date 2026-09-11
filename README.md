@@ -1,7 +1,7 @@
 # AegisDB
 
 <p align="center">
-  <strong>A Fault-Tolerant, Horizontally Sharded, Distributed Transactional Key-Value Database in Java</strong>
+  <strong>An Experimental, Distributed Transactional Key-Value Database in Java (Research Prototype)</strong>
 </p>
 
 <p align="center">
@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Transactions-2PC%20%26%20MVCC-purple.svg" alt="2PC & MVCC" />
   <img src="https://img.shields.io/badge/Isolation-Snapshot%20Isolation-darkgreen.svg" alt="Snapshot Isolation" />
   <img src="https://img.shields.io/badge/Telemetry-OpenTelemetry%20%26%20Prometheus-red.svg" alt="Telemetry" />
-  <img src="https://img.shields.io/badge/Release-1.0.0--GA-green.svg" alt="Release 1.0.0" />
+  <img src="https://img.shields.io/badge/Release-0.1.0--alpha.1-yellow.svg" alt="Release 0.1.0-alpha.1" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey.svg" alt="License MIT" />
 </p>
 
@@ -18,9 +18,11 @@
 
 ## Overview
 
-**AegisDB** is a distributed transactional key-value database engine built from first principles in modern Java (Java 25 LTS). It combines strong linearizable consensus via Raft, crash-safe local storage with write-ahead logging (WAL), multi-version concurrency control (MVCC) providing Snapshot Isolation, deterministic horizontal sharding via consistent hashing, and atomic cross-shard distributed transactions orchestrated through Two-Phase Commit (2PC).
+**AegisDB** is an experimental distributed transactional key-value database engine built from first principles in modern Java (Java 25 LTS). It explores strong linearizable consensus via Raft, crash-safe local storage with write-ahead logging (WAL), multi-version concurrency control (MVCC) providing Snapshot Isolation, deterministic horizontal sharding via consistent hashing, and atomic cross-shard distributed transactions orchestrated through Two-Phase Commit (2PC).
 
-Designed with production reliability, high observability, and formal verification in mind, AegisDB includes built-in chaos engineering fault injection, security hardening with role-based access control (RBAC), and full OpenTelemetry/Prometheus metrics integration.
+> [!WARNING]
+> **Status: Early Alpha (Research Prototype)**
+> AegisDB is currently an experimental research project. It is **NOT** production-ready. While the architecture supports advanced distributed systems concepts, the implementation is under active development to formally verify safety, durability, and crash recovery invariants. Do not use this in production environments.
 
 ---
 
@@ -403,7 +405,7 @@ Visualized graphs are saved to `experiments/graphs/` (`rq1_batching.png`, `rq2_r
 
 ## Master Completion Checklist (§28)
 
-AegisDB satisfies all 20 categories (28 formal items) of the Master Project Plan:
+AegisDB is actively working towards satisfying all 20 categories (28 formal items) of the Master Project Plan. Current status reflects the ongoing effort to harden invariants:
 
 | # | Invariant / Requirement | Verification Mechanism | Status |
 |:---:|---|---|:---:|
@@ -411,18 +413,18 @@ AegisDB satisfies all 20 categories (28 formal items) of the Master Project Plan
 | 2 | **Election Safety** | At most one leader per term is enforced ($L \le 1$) | ✅ PASS |
 | 3 | **Failover Recovery** | Unresponsive leader triggers re-election by majority | ✅ PASS |
 | 4 | **Quorum Replication** | Writes replicate and require majority confirmation | ✅ PASS |
-| 5 | **State Durability** | Committed data persists across node restarts | ✅ PASS |
+| 5 | **State Durability** | Committed data persists across node restarts | ⚠️ IN PROGRESS |
 | 6 | **WAL Tail Truncation** | Partial or corrupted WAL tails safely recovered | ✅ PASS |
-| 7 | **Log Compaction** | Periodic snapshots compact log and restore lagging nodes | ✅ PASS |
+| 7 | **Log Compaction** | Periodic snapshots compact log and restore lagging nodes | ⚠️ IN PROGRESS |
 | 8 | **Transparent Client SDK** | Transparent client routing and failover across leaders | ✅ PASS |
 | 9 | **Snapshot Isolation** | MVCC repeatable reads and write-write conflict aborts | ✅ PASS |
-| 10 | **Atomic Local Transactions** | ACID transactions with atomic commit and rollback | ✅ PASS |
+| 10 | **Atomic Local Transactions** | ACID transactions with atomic commit and rollback | ⚠️ IN PROGRESS |
 | 11 | **Consistent Sharding** | Deterministic partition routing via consistent hashing | ✅ PASS |
-| 12 | **Cross-Shard 2PC** | Distributed 2PC transactions recover from coordinator crashes | ✅ PASS |
+| 12 | **Cross-Shard 2PC** | Distributed 2PC transactions recover from coordinator crashes | ⚠️ IN PROGRESS |
 | 13 | **Idempotent Transport** | Duplicate messages and retry requests are idempotent | ✅ PASS |
 | 14 | **Chaos Engineering** | Network partition, packet drop, and crash fault injection | ✅ PASS |
-| 15 | **Security Hardening** | Constant-time Bearer token RBAC and input bounds | ✅ PASS |
-| 16 | **Quality & Architecture Gates** | Clean ArchUnit rules, SpotBugs, Checkstyle, and PMD | ✅ PASS |
+| 15 | **Security Hardening** | Constant-time Bearer token RBAC and input bounds | ⚠️ IN PROGRESS |
+| 16 | **Quality & Architecture Gates** | Clean ArchUnit rules, SpotBugs, Checkstyle, and PMD | ⚠️ IN PROGRESS |
 | 17 | **Telemetry & Observability** | OpenTelemetry spans and Prometheus `/metrics` export | ✅ PASS |
 | 18 | **Reproducible Benchmarks** | Automated export to structured CSV and JSON formats | ✅ PASS |
 | 19 | **Research Questions Answered** | Empirical data addresses RQ1, RQ2, and RQ3 trade-offs | ✅ PASS |

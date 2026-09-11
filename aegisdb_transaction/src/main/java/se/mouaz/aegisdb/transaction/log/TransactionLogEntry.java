@@ -32,6 +32,10 @@ public record TransactionLogEntry(
         return new TransactionLogEntry(seq, txId, TransactionState.PREPARING, ts, writes);
     }
 
+    public static TransactionLogEntry commitDecided(long seq, TransactionId txId, long ts, List<WriteOperation> writes) {
+        return new TransactionLogEntry(seq, txId, TransactionState.COMMIT_DECIDED, ts, writes);
+    }
+
     public static TransactionLogEntry commit(long seq, TransactionId txId, long commitTs, List<WriteOperation> writes) {
         return new TransactionLogEntry(seq, txId, TransactionState.COMMITTED, commitTs, writes);
     }

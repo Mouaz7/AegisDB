@@ -153,23 +153,31 @@ public class LocalShardParticipant implements TransactionParticipant {
 
         lock.lock();
         try {
-            PreparedContext ctx = inDoubtTransactions.remove(txId);
+            PreparedContext ctx = inDoubtTransactions.get(txId);
             if (ctx != null) {
-                try {
-                    ctx.tx().commit();
-                    log.info("Shard {} COMMITTED transaction {}", shardId, txId);
-                } finally {
-                    for (String k : ctx.lockedKeys()) {
-                        activeKeyLocks.remove(k, txId);
-                    }
-                    committedTransactions.add(txId);
+                ctx.tx().commit();
+                log.info("Shard {} COMMITTED transaction {}", shardId, txId);
+                for (String k : ctx.lockedKeys()) {
+                    activeKeyLocks.remove(k, txId);
                 }
-            } else {
-                // If not in-doubt, record committed to ensure idempotency
+                inDoubtTransactions.remove(txId);
                 committedTransactions.add(txId);
+            } else {
+                // Check TransactionManager directly (post-recovery)
+                Optional<TransactionContext> mgrCtx = transactionManager.registry().get(txId);
+                if (mgrCtx.isPresent() && (mgrCtx.get().state() == TransactionState.PREPARED || mgrCtx.get().state() == TransactionState.PREPARING)) {
+                    transactionManager.commit(txId);
+                    log.info("Shard {} COMMITTED recovered transaction {}", shardId, txId);
+                    committedTransactions.add(txId);
+                } else if (transactionManager.registry().isCommitted(txId)) {
+                    committedTransactions.add(txId);
+                } else {
+                    throw new IllegalStateException("Instructed to commit unknown or un-prepared txId=" + txId);
+                }
             }
             return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
+            // Do not release locks or remove from inDoubtTransactions on failure to allow retries
             log.error("Shard {} failed to commit transaction {}", shardId, txId, e);
             CompletableFuture<Void> failed = new CompletableFuture<>();
             failed.completeExceptionally(e);
@@ -190,21 +198,32 @@ public class LocalShardParticipant implements TransactionParticipant {
 
         lock.lock();
         try {
-            PreparedContext ctx = inDoubtTransactions.remove(txId);
+            PreparedContext ctx = inDoubtTransactions.get(txId);
             if (ctx != null) {
-                try {
-                    ctx.tx().abort();
-                    log.info("Shard {} ABORTED transaction {}", shardId, txId);
-                } finally {
-                    for (String k : ctx.lockedKeys()) {
-                        activeKeyLocks.remove(k, txId);
-                    }
-                    abortedTransactions.add(txId);
+                ctx.tx().abort();
+                log.info("Shard {} ABORTED transaction {}", shardId, txId);
+                for (String k : ctx.lockedKeys()) {
+                    activeKeyLocks.remove(k, txId);
                 }
-            } else {
+                inDoubtTransactions.remove(txId);
                 abortedTransactions.add(txId);
+            } else {
+                // Check TransactionManager directly (post-recovery)
+                Optional<TransactionContext> mgrCtx = transactionManager.registry().get(txId);
+                if (mgrCtx.isPresent() && (mgrCtx.get().state() == TransactionState.PREPARED || mgrCtx.get().state() == TransactionState.PREPARING)) {
+                    transactionManager.abort(txId);
+                    log.info("Shard {} ABORTED recovered transaction {}", shardId, txId);
+                    abortedTransactions.add(txId);
+                } else {
+                    abortedTransactions.add(txId); // Safe to abort unknown transaction idly
+                }
             }
             return CompletableFuture.completedFuture(null);
+        } catch (Exception e) {
+            log.error("Shard {} failed to abort transaction {}", shardId, txId, e);
+            CompletableFuture<Void> failed = new CompletableFuture<>();
+            failed.completeExceptionally(e);
+            return failed;
         } finally {
             lock.unlock();
         }

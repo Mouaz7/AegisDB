@@ -6,7 +6,7 @@
 
     <groupId>se.mouaz.aegisdb</groupId>
     <artifactId>aegisdb-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0</version>
     <packaging>pom</packaging>
 
     <name>AegisDB Parent</name>
@@ -253,6 +253,16 @@
                             </goals>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>4.8.6.6</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.12</version>
                 </plugin>
             </plugins>
         </pluginManagement>

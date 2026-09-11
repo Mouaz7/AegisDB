@@ -129,9 +129,10 @@ public class TransactionManager implements Closeable {
         return value;
     }
 
-    public void acquireWriteLock(TransactionContext context, String key) {
+    public boolean acquireWriteLock(TransactionContext context, String key) {
         long txId = context.id().value();
         Long existingLock = writeLocks.putIfAbsent(key, txId);
+        boolean newlyAcquired = (existingLock == null);
         if (existingLock != null && existingLock != txId) {
             metrics.incrementWriteConflict();
             throw new WriteConflictException(key, txId, existingLock);
@@ -154,6 +155,11 @@ public class TransactionManager implements Closeable {
                 }
             }
         }
+        return newlyAcquired;
+    }
+
+    public void releaseWriteLock(TransactionContext context, String key) {
+        writeLocks.remove(key, context.id().value());
     }
 
     public void prepare(TransactionId txId) {
@@ -171,10 +177,10 @@ public class TransactionManager implements Closeable {
             try {
                 commitValidator.validate(context, mvccStore);
             } catch (WriteConflictException e) {
-                metrics.incrementWriteConflict();
+                doAbort(context);
                 throw e;
             } catch (SerializationFailureException e) {
-                metrics.incrementSerializationFailure();
+                doAbort(context);
                 throw e;
             }
 
@@ -205,13 +211,20 @@ public class TransactionManager implements Closeable {
                 try {
                     commitValidator.validate(context, mvccStore);
                 } catch (WriteConflictException e) {
-                    metrics.incrementWriteConflict();
+                    doAbort(context);
                     throw e;
                 } catch (SerializationFailureException e) {
-                    metrics.incrementSerializationFailure();
+                    doAbort(context);
                     throw e;
                 }
             }
+
+            // Durability point of no return: persist redo information and decision
+            context.transitionTo(TransactionState.COMMIT_DECIDED);
+            long logTimestamp = System.currentTimeMillis();
+            transactionLog.logCommitDecided(txId, logTimestamp, context.writeSet());
+            
+            context.transitionTo(TransactionState.COMMITTING);
 
             // Apply write set mutations directly into MVCC store
             long internalId = txId.value();
@@ -227,9 +240,6 @@ public class TransactionManager implements Closeable {
             long commitTimestamp = mvccStore.commit(internalId);
             context.setCommitTimestamp(commitTimestamp);
             context.transitionTo(TransactionState.COMMITTED);
-
-            // Persist commit to log
-            transactionLog.logCommit(txId, commitTimestamp, context.writeSet());
 
             // Release write locks
             for (String key : context.writeSet().keys()) {
@@ -264,27 +274,33 @@ public class TransactionManager implements Closeable {
 
         TransactionContext context = ctxOpt.get();
         synchronized (globalCommitLock) {
-            try {
-                context.transitionTo(TransactionState.ABORTED);
-            } catch (IllegalStateException ignored) {
-                // already aborted or terminal
-            }
-
-            // Roll back any uncommitted versions in MVCC store
-            mvccStore.abort(txId.value());
-
-            // Release write locks
-            for (String key : context.writeSet().keys()) {
-                writeLocks.remove(key, txId.value());
-            }
-
-            context.snapshot().close();
-            transactionLog.logAbort(txId, System.currentTimeMillis());
-            registry.markAborted(txId);
-            metrics.incrementAborted();
-
-            log.debug("Transaction {} ABORTED and cleaned up", txId);
+            doAbort(context);
         }
+    }
+
+    private void doAbort(TransactionContext context) {
+        try {
+            context.transitionTo(TransactionState.ABORTED);
+        } catch (IllegalStateException ignored) {
+            // already aborted or terminal
+        }
+
+        TransactionId txId = context.id();
+        
+        // Roll back any uncommitted versions in MVCC store
+        mvccStore.abort(txId.value());
+
+        // Release write locks
+        for (String key : context.writeSet().keys()) {
+            writeLocks.remove(key, txId.value());
+        }
+
+        context.snapshot().close();
+        transactionLog.logAbort(txId, System.currentTimeMillis());
+        registry.markAborted(txId);
+        metrics.incrementAborted();
+
+        log.debug("Transaction {} ABORTED and cleaned up", txId);
     }
 
     // ==========================================
@@ -341,11 +357,44 @@ public class TransactionManager implements Closeable {
             List<TransactionLogEntry> entries = transactionLog.replay();
             for (TransactionLogEntry entry : entries) {
                 switch (entry.state()) {
-                    case COMMITTED -> registry.markCommitted(entry.txId(), entry.timestamp());
+                    case COMMIT_DECIDED, COMMITTED -> {
+                        // Apply writes from redo log if they haven't been applied
+                        if (entry.writeOperations() != null && !entry.writeOperations().isEmpty()) {
+                            long internalId = mvccStore.beginTransaction();
+                            for (WriteOperation op : entry.writeOperations()) {
+                                if (op.type() == OperationType.PUT) {
+                                    mvccStore.put(op.key(), op.value(), internalId);
+                                } else if (op.type() == OperationType.DELETE) {
+                                    mvccStore.delete(op.key(), internalId);
+                                }
+                            }
+                            mvccStore.commit(internalId);
+                        }
+                        registry.markCommitted(entry.txId(), entry.timestamp());
+                    }
                     case ABORTED -> registry.markAborted(entry.txId());
                     case PREPARING -> {
                         // Recover prepared transaction for 2PC resolution
-                        log.info("Recovered PREPARED transaction {} from log", entry.txId());
+                        TransactionContext ctx = new TransactionContext(
+                                entry.txId(),
+                                config.defaultIsolationLevel(),
+                                entry.timestamp(),
+                                se.mouaz.aegisdb.mvcc.Snapshot.of(entry.timestamp()),
+                                null,
+                                null
+                        );
+                        if (entry.writeOperations() != null) {
+                            for (WriteOperation op : entry.writeOperations()) {
+                                if (op.type() == OperationType.PUT) {
+                                    ctx.writeSet().put(op.key(), op.value(), config.maxWriteSetSize());
+                                } else if (op.type() == OperationType.DELETE) {
+                                    ctx.writeSet().delete(op.key(), config.maxWriteSetSize());
+                                }
+                            }
+                        }
+                        ctx.transitionTo(TransactionState.PREPARING); // to match log state
+                        registry.register(ctx);
+                        log.info("Recovered PREPARING transaction {} from log", entry.txId());
                     }
                     default -> {
                         // In-flight active transactions at crash time default to aborted

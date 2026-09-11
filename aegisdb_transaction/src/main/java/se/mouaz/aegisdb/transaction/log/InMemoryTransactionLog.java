@@ -31,6 +31,13 @@ public class InMemoryTransactionLog implements TransactionLog {
     }
 
     @Override
+    public void logCommitDecided(TransactionId txId, long timestamp, WriteSet writeSet) {
+        long seq = sequenceGenerator.incrementAndGet();
+        List<WriteOperation> writes = (writeSet != null) ? new ArrayList<>(writeSet.operations().values()) : Collections.emptyList();
+        entries.add(TransactionLogEntry.commitDecided(seq, txId, timestamp, writes));
+    }
+
+    @Override
     public void logCommit(TransactionId txId, long commitTimestamp, WriteSet writeSet) {
         long seq = sequenceGenerator.incrementAndGet();
         List<WriteOperation> writes = (writeSet != null) ? new ArrayList<>(writeSet.operations().values()) : Collections.emptyList();

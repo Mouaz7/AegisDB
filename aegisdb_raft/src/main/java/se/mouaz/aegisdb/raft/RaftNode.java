@@ -157,6 +157,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                 transport,
                 clusterConfig,
                 electionTimer,
+                this.raftLog,
                 election -> {
                     // Leader elected callback (§5.2, §5.3)
                     heartbeatManager.startHeartbeats();
@@ -172,7 +173,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
         );
 
         // 5. RequestVote Handler
-        this.requestVoteHandler = new RequestVoteHandler(state, electionTimer);
+        this.requestVoteHandler = new RequestVoteHandler(state, electionTimer, this.raftLog);
 
         // 6. AppendEntries Handler
         this.appendEntriesHandler = new AppendEntriesHandler(state, electionTimer, this.raftLog, conflictResolver);
@@ -518,20 +519,9 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
             return;
         }
 
-        // Fast path for read-only GET queries against applied state
-        try {
-            KvCommand kvCmd = KvCommand.fromBytes(command);
-            if (kvCmd.opType() == KvCommand.OpType.GET) {
-                applyCommittedEntries();
-                if (stateMachine instanceof KeyValueStateMachine kvSm) {
-                    byte[] val = kvSm.get(kvCmd.key());
-                    future.complete(val != null ? val : new byte[0]);
-                    return;
-                }
-            }
-        } catch (Exception ignored) {
-            // Replicate as normal command
-        }
+        // Removed stale fast-path for read-only GET queries.
+        // To guarantee linearizability without a verified leader lease or ReadIndex,
+        // all queries must be replicated through the consensus log (P1 bug fix).
 
         CompletableFuture<Long> replicationFuture = new CompletableFuture<>();
         replicationManager.propose(command, replicationFuture);

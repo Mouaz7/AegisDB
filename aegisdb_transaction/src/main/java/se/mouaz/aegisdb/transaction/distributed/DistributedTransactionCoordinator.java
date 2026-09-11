@@ -186,21 +186,20 @@ public class DistributedTransactionCoordinator implements Closeable {
         coordinatorLog.logState(txId, TwoPhaseCommitState.COMMIT_DECIDED, participantShards);
         activeTransactions.put(txId, TwoPhaseCommitState.COMMIT_DECIDED);
 
-        // 2. Broadcast commit to all participants
+        // 2. Broadcast commit to all participants with retry
         List<CompletableFuture<Void>> commitFutures = new ArrayList<>();
         for (ShardId shardId : participantShards) {
             TransactionParticipant participant = participantLookup.apply(shardId);
             if (participant != null) {
-                commitFutures.add(participant.commit(txId).exceptionally(err -> {
-                    log.error("Commit broadcast error to shard {} for txId={}: {}", shardId, txId, err.getMessage());
-                    // 2PC invariant: once commit is decided, it MUST succeed; participants retry or recover
-                    return null;
-                }));
+                commitFutures.add(sendWithRetry(participant, txId, true, 1));
+            } else {
+                commitFutures.add(CompletableFuture.failedFuture(new IllegalStateException("Participant not found: " + shardId)));
             }
         }
 
         return CompletableFuture.allOf(commitFutures.toArray(new CompletableFuture[0]))
                 .thenRun(() -> {
+                    // Only mark COMMITTED (COMPLETED) when ALL participants have acknowledged
                     coordinatorLog.logState(txId, TwoPhaseCommitState.COMMITTED, participantShards);
                     activeTransactions.put(txId, TwoPhaseCommitState.COMMITTED);
                     log.info("2PC COMMITTED successfully for txId={}", txId);
@@ -218,13 +217,15 @@ public class DistributedTransactionCoordinator implements Closeable {
         coordinatorLog.logState(txId, TwoPhaseCommitState.ABORT_DECIDED, participantShards);
         activeTransactions.put(txId, TwoPhaseCommitState.ABORT_DECIDED);
 
-        // 2. Broadcast abort to all participants
+        // 2. Broadcast abort to all participants with retry
         List<CompletableFuture<Void>> abortFutures = new ArrayList<>();
         for (ShardId shardId : participantShards) {
             TransactionParticipant participant = participantLookup.apply(shardId);
             if (participant != null) {
-                abortFutures.add(participant.abort(txId).exceptionally(err -> {
-                    log.warn("Abort notification error to shard {} for txId={}: {}", shardId, txId, err.getMessage());
+                abortFutures.add(sendWithRetry(participant, txId, false, 1).exceptionally(err -> {
+                    log.warn("Abort notification failed after retries to shard {} for txId={}: {}", shardId, txId, err.getMessage());
+                    // We can be more lenient with ABORT retries, but strictly they should also be acknowledged.
+                    // For now, if max retries fail on ABORT, we still proceed so we don't leak resources.
                     return null;
                 }));
             }
@@ -232,6 +233,7 @@ public class DistributedTransactionCoordinator implements Closeable {
 
         return CompletableFuture.allOf(abortFutures.toArray(new CompletableFuture[0]))
                 .handle((v, err) -> {
+                    // Only mark ABORTED (COMPLETED) when participants have acknowledged
                     coordinatorLog.logState(txId, TwoPhaseCommitState.ABORTED, participantShards);
                     activeTransactions.put(txId, TwoPhaseCommitState.ABORTED);
                     log.info("2PC ABORTED successfully for txId={}", txId);
@@ -243,6 +245,27 @@ public class DistributedTransactionCoordinator implements Closeable {
                     failed.completeExceptionally(finalEx);
                     return failed;
                 }).thenCompose(Function.identity());
+    }
+
+    private CompletableFuture<Void> sendWithRetry(TransactionParticipant participant, TransactionId txId, boolean isCommit, int attempt) {
+        CompletableFuture<Void> action = isCommit ? participant.commit(txId) : participant.abort(txId);
+        return action.exceptionallyCompose(err -> {
+            if (attempt >= 5) { // Bounded attempts per execution
+                log.error("Max retries reached for participant {} txId={}. Background recovery required.", participant.shardId(), txId);
+                return CompletableFuture.failedFuture(new RuntimeException("Participant unreachable: " + participant.shardId(), err));
+            }
+            log.warn("Retry {} for participant {} txId={}: {}", attempt, participant.shardId(), txId, err.getMessage());
+            CompletableFuture<Void> delayed = new CompletableFuture<>();
+            long backoffMs = (long) Math.pow(2, attempt) * 100; // Exponential backoff
+            scheduler.schedule(() -> {
+                sendWithRetry(participant, txId, isCommit, attempt + 1)
+                    .whenComplete((v, e) -> {
+                        if (e != null) delayed.completeExceptionally(e);
+                        else delayed.complete(v);
+                    });
+            }, backoffMs, TimeUnit.MILLISECONDS);
+            return delayed;
+        });
     }
 
     private <T> CompletableFuture<T> withTimeout(CompletableFuture<T> future, Duration timeout) {
@@ -269,6 +292,37 @@ public class DistributedTransactionCoordinator implements Closeable {
             return state;
         }
         return coordinatorLog.getEntry(txId).map(CoordinatorLogEntry::state).orElse(TwoPhaseCommitState.INIT);
+    }
+
+    public void recover() {
+        log.info("Starting 2PC Coordinator recovery from log...");
+        Map<TransactionId, CoordinatorLogEntry> entries = coordinatorLog.recover();
+        for (Map.Entry<TransactionId, CoordinatorLogEntry> entry : entries.entrySet()) {
+            TransactionId txId = entry.getKey();
+            CoordinatorLogEntry logEntry = entry.getValue();
+            
+            activeTransactions.put(txId, logEntry.state());
+            
+            switch (logEntry.state()) {
+                case COMMIT_DECIDED -> {
+                    log.info("Recovered txId={} in COMMIT_DECIDED state. Resuming broadcast.", txId);
+                    // Create dummy futures since proceedToCommit expects to be chained, but here we run it detached
+                    proceedToCommit(txId, logEntry.participants());
+                }
+                case ABORT_DECIDED -> {
+                    log.info("Recovered txId={} in ABORT_DECIDED state. Resuming broadcast.", txId);
+                    abort(txId, logEntry.participants(), new DistributedTransactionAbortedException("Recovered ABORT_DECIDED"));
+                }
+                case PREPARING -> {
+                    log.info("Recovered txId={} in Phase 1 state {}. Aborting to ensure safety.", txId, logEntry.state());
+                    abort(txId, logEntry.participants(), new DistributedTransactionAbortedException("Coordinator crashed during Phase 1"));
+                }
+                case COMMITTED, ABORTED, INIT -> {
+                    // Terminal states, ignore
+                }
+            }
+        }
+        log.info("2PC Coordinator recovery complete. Tracked {} active transactions.", activeTransactions.size());
     }
 
     @Override

@@ -32,6 +32,7 @@ class WalPartialWriteRecoveryTest {
 
         // 1. Write 3 valid committed records
         try (WalManager walManager = new WalManager(config)) {
+            walManager.openWriter();
             for (int i = 1; i <= 3; i++) {
                 StorageRecord rec = StorageRecord.createEntry(
                         i,
@@ -89,6 +90,7 @@ class WalPartialWriteRecoveryTest {
 
         // 4. Verify subsequent appends work cleanly on the repaired segment
         try (WalManager resumeManager = new WalManager(config)) {
+            resumeManager.openWriter();
             StorageRecord newRecord = StorageRecord.createEntry(
                     4L,
                     1L,

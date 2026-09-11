@@ -61,8 +61,15 @@ public class TransactionImpl implements Transaction {
         Objects.requireNonNull(value, "value must not be null");
 
         manager.checkTimeout(context);
-        manager.acquireWriteLock(context, key);
-        context.writeSet().put(key, value, config.maxWriteSetSize());
+        boolean newlyAcquired = manager.acquireWriteLock(context, key);
+        try {
+            context.writeSet().put(key, value, config.maxWriteSetSize());
+        } catch (RuntimeException e) {
+            if (newlyAcquired) {
+                manager.releaseWriteLock(context, key);
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -71,8 +78,15 @@ public class TransactionImpl implements Transaction {
         Objects.requireNonNull(key, "key must not be null");
 
         manager.checkTimeout(context);
-        manager.acquireWriteLock(context, key);
-        context.writeSet().delete(key, config.maxWriteSetSize());
+        boolean newlyAcquired = manager.acquireWriteLock(context, key);
+        try {
+            context.writeSet().delete(key, config.maxWriteSetSize());
+        } catch (RuntimeException e) {
+            if (newlyAcquired) {
+                manager.releaseWriteLock(context, key);
+            }
+            throw e;
+        }
     }
 
     @Override

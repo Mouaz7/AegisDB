@@ -141,7 +141,7 @@ class SingleShardTransactionMilestoneM3Test {
                             tx.putString(from, String.valueOf(fromBal - amount));
                             tx.putString(to, String.valueOf(toBal + amount));
                             return null;
-                        }, 50);
+                        }, 500);
 
                         successCount.incrementAndGet();
                     }

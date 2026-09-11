@@ -27,6 +27,9 @@ public class WalManager implements Closeable {
         this.config = Objects.requireNonNull(config, "config cannot be null");
         initDirectory();
         discoverExistingSegments();
+    }
+
+    public synchronized void openWriter() throws IOException {
         ensureActiveWriter();
     }
 

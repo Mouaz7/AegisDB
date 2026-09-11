@@ -82,6 +82,13 @@ public class DurableTransactionLog implements TransactionLog {
     }
 
     @Override
+    public void logCommitDecided(TransactionId txId, long timestamp, WriteSet writeSet) {
+        long seq = sequenceGenerator.incrementAndGet();
+        List<WriteOperation> writes = (writeSet != null) ? new ArrayList<>(writeSet.operations().values()) : Collections.emptyList();
+        appendRecord(seq, txId, TransactionState.COMMIT_DECIDED, timestamp, writes, syncOnCommit);
+    }
+
+    @Override
     public void logCommit(TransactionId txId, long commitTimestamp, WriteSet writeSet) {
         long seq = sequenceGenerator.incrementAndGet();
         List<WriteOperation> writes = (writeSet != null) ? new ArrayList<>(writeSet.operations().values()) : Collections.emptyList();

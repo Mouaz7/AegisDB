@@ -39,7 +39,7 @@ public class StorageEngine implements Closeable {
     private final FileSnapshotWriter snapshotWriter;
     private final FileSnapshotReader snapshotReader;
     private final RecoveryManager recoveryManager;
-    private final StorageIndex storageIndex;
+    private StorageIndex storageIndex;
 
     public StorageEngine(Path baseDataDir, FsyncPolicy fsyncPolicy, long maxSegmentSizeBytes) throws IOException {
         this.baseDataDir = validateDataDir(baseDataDir);
@@ -139,6 +139,12 @@ public class StorageEngine implements Closeable {
      */
     public DurableRecovery recoverAndCreateLog() throws IOException {
         RecoveryResult result = recoveryManager.recover();
+
+        // 1. Adopt the authoritative index constructed from WAL recovery
+        this.storageIndex = result.storageIndex();
+
+        // 2. ONLY open the writer AFTER recovery has safely truncated torn tails
+        walWriter.open();
 
         // Reconstruct log starting with snapshot baseline if present
         DurableRaftLog log = new DurableRaftLog(
