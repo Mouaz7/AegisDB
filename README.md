@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Java-25%20LTS-orange.svg" alt="Java 25 LTS" />
+  <img src="https://img.shields.io/badge/Java-21%20LTS-orange.svg" alt="Java 21 LTS" />
   <img src="https://img.shields.io/badge/Consensus-Raft-blue.svg" alt="Raft Consensus" />
   <img src="https://img.shields.io/badge/Transactions-2PC%20%26%20MVCC-purple.svg" alt="2PC & MVCC" />
   <img src="https://img.shields.io/badge/Isolation-Snapshot%20Isolation-darkgreen.svg" alt="Snapshot Isolation" />
@@ -18,7 +18,7 @@
 
 ## Overview
 
-**AegisDB** is an experimental distributed transactional key-value database engine built from first principles in modern Java (Java 25 LTS). It explores strong linearizable consensus via Raft, crash-safe local storage with write-ahead logging (WAL), multi-version concurrency control (MVCC) providing Snapshot Isolation, deterministic horizontal sharding via consistent hashing, and atomic cross-shard distributed transactions orchestrated through Two-Phase Commit (2PC).
+**AegisDB** is an experimental distributed transactional key-value database engine built from first principles in modern Java (Java 21 LTS). It explores strong linearizable consensus via Raft, crash-safe local storage with write-ahead logging (WAL), multi-version concurrency control (MVCC) providing Snapshot Isolation, deterministic horizontal sharding via consistent hashing, and atomic cross-shard distributed transactions orchestrated through Two-Phase Commit (2PC).
 
 > [!WARNING]
 > **Status: Early Alpha (Research Prototype)**
@@ -72,7 +72,7 @@ AegisDB follows a strict, layered, decoupled architecture with 16 modular compon
 
 ```text
 AegisDB/
-├── pom.xml                                      # Parent POM (Java 25, gRPC, Protobuf, JUnit 5)
+├── pom.xml                                      # Parent POM (Java 21, gRPC, Protobuf, JUnit 5)
 ├── README.md                                    # System manual & operational guide
 ├── LICENSE                                      # MIT License
 ├── bin/
@@ -94,7 +94,7 @@ AegisDB/
 ├── experiments/                                 # Benchmark data, results (CSV/JSON), and research plots
 ├── scripts/                                     # Automated management & verification scripts
 │   ├── package-release.sh                       # Production distribution packaging
-│   ├── run-master-capstone-demo.sh              # 16-step Master Demonstration scenario (§26)
+│   ├── run-release-smoke-test.sh                # 16-step Master Demonstration scenario (§26)
 │   ├── verify-master-checklist.sh               # 28-point Master Completion Checklist validator
 │   └── test-all.sh                              # Complete unit, architecture & integration test runner
 │
@@ -120,7 +120,7 @@ AegisDB/
 ## Getting Started
 
 ### Prerequisites
-- **Java Development Kit**: Java 25 LTS (or Java 21+ with modern language feature support)
+- **Java Development Kit**: Java 21 LTS (or Java 21+ with modern language feature support)
 - **Build Tool**: Apache Maven 3.8+
 - **Container Runtime (Optional)**: Docker & Docker Compose (for Prometheus/Grafana stack)
 
@@ -143,11 +143,11 @@ mvn test
 ### 3. Run the Master Capstone Live Demonstration
 To view the full 16-step operational demonstration scenario (§26) in your console (starting a 3-node cluster, leader election, replicated writes, leader kill, automatic failover, recovery, MVCC transactions, cross-shard 2PC, network partition, healing, RBAC security, and telemetry):
 ```bash
-./scripts/run-master-capstone-demo.sh
+./scripts/run-release-smoke-test.sh
 ```
 *Tip: Add `--extended` for heavy stress workload validation:*
 ```bash
-./scripts/run-master-capstone-demo.sh --extended
+./scripts/run-release-smoke-test.sh --extended
 ```
 
 ### 4. Verify the Master Completion Checklist (§28)
@@ -447,7 +447,7 @@ In-depth technical specifications and architectural decisions are documented in 
 - [Master Completion & System Release Report](docs/master-completion-report.md)
 
 ### Architectural Decision Records (ADRs)
-- [ADR 0001: Java 25 LTS Baseline](docs/adr/0001-java-25-baseline.md)
+- [ADR 0001: Java 21 LTS Baseline](docs/adr/0001-java-21-baseline.md)
 - [ADR 0002: gRPC and In-Memory Transport](docs/adr/0002-grpc-and-in-memory-transport.md)
 - [ADR 0003: Deterministic Event Loop for Raft](docs/adr/0003-deterministic-event-loop-for-raft.md)
 - [ADR 0004: WAL Format and Fsync Policy](docs/adr/0004-wal-format-and-fsync-policy.md)

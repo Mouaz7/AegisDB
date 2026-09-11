@@ -28,7 +28,7 @@ Key requirements:
 3. **Continuous Invariant Monitor**:
    - `ChaosInvariantMonitor` runs alongside fault scenarios to assert consensus safety and financial invariants in real time.
 4. **Lightweight Secure Management API**:
-   - Uses standard JDK `HttpServer` with virtual threads, eliminating external heavyweight framework bloat in Java 25 LTS.
+   - Uses standard JDK `HttpServer` with virtual threads, eliminating external heavyweight framework bloat in Java 21 LTS.
    - Constant-time secret validation (`MessageDigest.isEqual`) prevents timing side-channels.
    - Enforces RBAC (`ROLE_MONITOR` vs `ROLE_ADMIN`) with deny-by-default on unauthorized endpoints.
 5. **Security Guardrails**:

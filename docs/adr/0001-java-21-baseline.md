@@ -1,4 +1,4 @@
-# ADR 0001: Java 25 LTS Baseline
+# ADR 0001: Java 21 LTS Baseline
 
 ## Status
 Accepted
@@ -13,10 +13,10 @@ Key considerations:
 4. Consistent multi-module Maven build and CI tooling.
 
 ## Decision
-We adopt **Java 25 LTS** as the baseline compiler release and runtime standard for AegisDB across all Maven modules.
+We adopt **Java 21 LTS** as the baseline compiler release and runtime standard for AegisDB across all Maven modules.
 
 Specific guidelines:
-- Parent POM enforces `<maven.compiler.release>25</maven.compiler.release>`.
+- Parent POM enforces `<maven.compiler.release>21</maven.compiler.release>`.
 - Prefer modern Java standard library concurrency and collection primitives in algorithmic core modules (`common`, `raft`, `storage`, `mvcc`).
 - Prohibit framework magic (such as Spring annotations or reflections) in core algorithmic modules.
 
@@ -27,4 +27,4 @@ Specific guidelines:
 - Clean dependency profile without legacy polyfills.
 
 ### Negative
-- Requires developer and CI environments to have JDK 25 installed.
+- Requires developer and CI environments to have JDK 21 installed.

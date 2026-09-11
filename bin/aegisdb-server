@@ -7,8 +7,22 @@
 set -e
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONFIG_FILE="${1:-$DIR/config/aegisdb-cluster.yaml}"
-NODE_ID="${2:-node-1}"
+CONFIG_FILE=""
+NODE_ID=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --config) CONFIG_FILE="$2"; shift ;;
+        --node-id) NODE_ID="$2"; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+if [ -z "$CONFIG_FILE" ] || [ -z "$NODE_ID" ]; then
+    echo "Usage: $0 --config <path> --node-id <id>"
+    exit 1
+fi
 
 echo "====================================================================="
 echo "  Starting AegisDB Server [Node ID: $NODE_ID]"
@@ -18,6 +32,6 @@ echo "====================================================================="
 CP="$DIR/lib/*"
 
 exec java -cp "$CP" \
-    se.mouaz.aegisdb.node.DatabaseNode \
+    se.mouaz.aegisdb.node.StandaloneLauncher \
     --config "$CONFIG_FILE" \
-    --node "$NODE_ID"
+    --node-id "$NODE_ID"

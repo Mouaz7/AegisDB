@@ -34,20 +34,15 @@ jobs:
         run: |
           mvn test
 
-      - name: Run Live Demonstration (Phase 10 / US016, US017)
-        run: |
-          chmod +x scripts/*.sh
-          ./scripts/run-phase10-demo.sh
-
       - name: Run Live Demonstration & Research Benchmarks (Phase 11 / US018, US019)
         run: |
-          ./scripts/run-phase11-demo.sh
+          ./scripts/run-stress-benchmarks.sh
           python -m pip install matplotlib
           python scripts/plot_benchmarks.py
 
       - name: Run Master Capstone Live Demonstration & Verification (Phase 12 / Master Plan §26 & §28)
         run: |
-          ./scripts/run-phase12-demo.sh
+          ./scripts/run-release-smoke-test.sh
           ./scripts/verify-master-checklist.sh
 
       - name: Build & Verify Production Release Distribution Bundle (Master Plan §24)

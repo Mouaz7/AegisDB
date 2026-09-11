@@ -6,7 +6,7 @@
 
 ## 1. System Overview
 
-AegisDB is a distributed, fault-tolerant transactional database written from the ground up in Java (Java 25 LTS). The system is built on Raft consensus for strong consistency and replication, combined with Write-Ahead Logging (WAL) and snapshotting for persistent storage and crash recovery, as well as MVCC (Multi-Version Concurrency Control) and Two-Phase Commit (2PC) for distributed transactions.
+AegisDB is a distributed, fault-tolerant transactional database written from the ground up in Java (Java 21 LTS). The system is built on Raft consensus for strong consistency and replication, combined with Write-Ahead Logging (WAL) and snapshotting for persistent storage and crash recovery, as well as MVCC (Multi-Version Concurrency Control) and Two-Phase Commit (2PC) for distributed transactions.
 
 ```mermaid
 flowchart TD
@@ -48,7 +48,7 @@ The following layer boundaries are mandatory in the system design:
 
 ```text
 AegisDB/
-├── pom.xml                   # Root Parent POM (Java 25, gRPC, Protobuf, JUnit 5)
+├── pom.xml                   # Root Parent POM (Java 21, gRPC, Protobuf, JUnit 5)
 ├── README.md                 # Project documentation & instructions
 ├── LICENSE                   # MIT License
 ├── docker/                   # Docker and container configurations
@@ -120,7 +120,7 @@ Phase 10 introduces systematic fault injection, continuous safety assertion, and
 - **Composable Fault Injection (`FaultyTransport`):** Decorates the abstract `RaftTransport` layer to introduce deterministic packet drops, latency jitter, duplications, and network partitions without touching core consensus algorithms.
 - **Cluster Orchestration (`ChaosOrchestrator`):** Simulates leader kills, follower crashes, split-brain majority/minority partitions, and dynamic network healing.
 - **Continuous Invariant Verification (`ChaosInvariantMonitor`):** Concurrently asserts that election safety (at most one leader per term), monotonic terms, log prefix equality, and cross-shard financial balance conservation ($A + B + C = 3000$) remain strictly intact under continuous chaos.
-- **Management Plane & RBAC (`ManagementHttpServer`):** Lightweight JDK `HttpServer` with Java 25 virtual threads exposing operational diagnostics. Protected by constant-time Bearer token verification (`MessageDigest.isEqual`) defending against side-channel timing attacks.
+- **Management Plane & RBAC (`ManagementHttpServer`):** Lightweight JDK `HttpServer` with Java 21 virtual threads exposing operational diagnostics. Protected by constant-time Bearer token verification (`MessageDigest.isEqual`) defending against side-channel timing attacks.
 - **Security Guardrails:**
   - Key size bounded to $\le 1\text{ KB}$ and payload size bounded to $\le 16\text{ MB}$.
   - Token-bucket rate limiting against Denial-of-Service (DoS).

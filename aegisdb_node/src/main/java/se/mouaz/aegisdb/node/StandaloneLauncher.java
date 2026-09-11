@@ -1,5 +1,8 @@
 package se.mouaz.aegisdb.node;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.mouaz.aegisdb.common.ClusterConfiguration;
@@ -8,6 +11,7 @@ import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.common.ClusterId;
 import se.mouaz.aegisdb.common.Endpoint;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.time.Duration;
 
@@ -19,33 +23,105 @@ public class StandaloneLauncher {
     private static final Logger log = LoggerFactory.getLogger(StandaloneLauncher.class);
 
     public static void main(String[] args) {
-        if (args.length < 3) {
-            System.err.println("Usage: java StandaloneLauncher <nodeId> <port> <dataDir> [peerId:peerHost:peerPort...]");
+        String configFile = null;
+        String nodeIdStr = null;
+
+        for (int i = 0; i < args.length; i++) {
+            if ("--config".equals(args[i]) && i + 1 < args.length) {
+                configFile = args[++i];
+            } else if ("--node-id".equals(args[i]) && i + 1 < args.length) {
+                nodeIdStr = args[++i];
+            } else {
+                System.err.println("Unknown parameter passed: " + args[i]);
+                System.exit(1);
+            }
+        }
+
+        if (configFile == null || nodeIdStr == null) {
+            System.err.println("Usage: java se.mouaz.aegisdb.node.StandaloneLauncher --config <path> --node-id <id>");
             System.exit(1);
         }
 
-        String nodeIdStr = args[0];
-        int port = Integer.parseInt(args[1]);
-        String dataDir = args[2];
+        File configPath = new File(configFile);
+        if (!configPath.exists() || !configPath.isFile()) {
+            System.err.println("Configuration file not found: " + configFile);
+            System.exit(1);
+        }
 
-        NodeId nodeId = NodeId.of(nodeIdStr);
-        NodeConfiguration nodeConfig = NodeConfiguration.builder()
-                .nodeId(nodeId)
-                .endpoint(Endpoint.of("localhost", port))
-                .dataDir(Path.of(dataDir))
-                .electionTimeout(Duration.ofMillis(300))
-                .heartbeatInterval(Duration.ofMillis(100))
-                .build();
+        JsonNode root;
+        try {
+            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+            root = mapper.readTree(configPath);
+        } catch (Exception e) {
+            System.err.println("Failed to parse YAML configuration: " + e.getMessage());
+            System.exit(1);
+            return;
+        }
+
+        JsonNode clusterNode = root.path("cluster");
+        String clusterIdStr = clusterNode.path("clusterId").asText(null);
+        if (clusterIdStr == null) {
+            System.err.println("Missing cluster.clusterId in configuration");
+            System.exit(1);
+        }
+
+        JsonNode nodesArray = clusterNode.path("nodes");
+        if (!nodesArray.isArray() || nodesArray.isEmpty()) {
+            System.err.println("Missing or empty cluster.nodes array in configuration");
+            System.exit(1);
+        }
+
+        JsonNode storageNode = root.path("storage");
+        String dataDirBase = storageNode.path("dataDir").asText(null);
+        if (dataDirBase == null) {
+            System.err.println("Missing storage.dataDir in configuration");
+            System.exit(1);
+        }
+
+        JsonNode raftNode = root.path("raft");
+        long electionTimeoutMaxMs = raftNode.path("electionTimeoutMaxMs").asLong(300);
+        long heartbeatIntervalMs = raftNode.path("heartbeatIntervalMs").asLong(100);
 
         ClusterConfiguration.Builder clusterBuilder = ClusterConfiguration.builder()
-                .clusterId(ClusterId.of("aegisdb-cluster"));
-        
-        for (int i = 3; i < args.length; i++) {
-            String[] parts = args[i].split(":");
-            if (parts.length == 3) {
-                clusterBuilder.addMember(parts[0], parts[1], Integer.parseInt(parts[2]));
+                .clusterId(ClusterId.of(clusterIdStr));
+
+        JsonNode myNodeConfig = null;
+
+        for (JsonNode nodeItem : nodesArray) {
+            String nId = nodeItem.path("id").asText(null);
+            String nHost = nodeItem.path("host").asText(null);
+            int nPort = nodeItem.path("port").asInt(-1);
+
+            if (nId == null || nHost == null || nPort <= 0 || nPort > 65535) {
+                System.err.println("Invalid node configuration, missing/invalid id, host, or port: " + nodeItem);
+                System.exit(1);
+            }
+
+            clusterBuilder.addMember(nId, nHost, nPort);
+
+            if (nId.equals(nodeIdStr)) {
+                myNodeConfig = nodeItem;
             }
         }
+
+        if (myNodeConfig == null) {
+            System.err.println("Unknown node ID: " + nodeIdStr + " (not found in configuration)");
+            System.exit(1);
+        }
+
+        NodeId nodeId = NodeId.of(nodeIdStr);
+        String myHost = myNodeConfig.path("host").asText();
+        int myPort = myNodeConfig.path("port").asInt();
+        Path nodeDataDir = Path.of(dataDirBase, nodeIdStr);
+
+        NodeConfiguration nodeConfig = NodeConfiguration.builder()
+                .nodeId(nodeId)
+                .endpoint(Endpoint.of(myHost, myPort))
+                .dataDir(nodeDataDir)
+                .electionTimeout(Duration.ofMillis(electionTimeoutMaxMs))
+                .heartbeatInterval(Duration.ofMillis(heartbeatIntervalMs))
+                .build();
+
         ClusterConfiguration clusterConfig = clusterBuilder.build();
 
         log.info("Bootstrapping AegisDB Node: {}", nodeId);
