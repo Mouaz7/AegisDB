@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Transactions-2PC%20%26%20MVCC-purple.svg" alt="2PC & MVCC" />
   <img src="https://img.shields.io/badge/Isolation-Snapshot%20Isolation-darkgreen.svg" alt="Snapshot Isolation" />
   <img src="https://img.shields.io/badge/Telemetry-OpenTelemetry%20%26%20Prometheus-red.svg" alt="Telemetry" />
-  <img src="https://img.shields.io/badge/Release-0.1.0--alpha.1-yellow.svg" alt="Release 0.1.0-alpha.1" />
+  <img src="https://img.shields.io/badge/Release-1.0.0-yellow.svg" alt="Release 1.0.0" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey.svg" alt="License MIT" />
 </p>
 
@@ -49,6 +49,11 @@
 - **Two-Phase Commit (2PC)**: Cross-shard atomic transactions coordinate parallel `PREPARE` and `COMMIT`/`ABORT` phases across participant shards.
 - **Durable Coordinator Journal**: Binary coordinator log records transaction state transitions (`PREPARING`, `COMMITTED`, `ABORTED`); automatic startup recovery resolves in-doubt transactions across all 8 failure modes.
 
+### ⚠️ Scope & Limitations of Guarantees
+- **Durability**: Guaranteed only if WAL segments are successfully flushed (`fsync`) to stable storage before responding to the client. Using delayed `fsync_policy` risks data loss on sudden power failure.
+- **Consistency**: Linearizability is scoped *per shard*. Cross-shard transactions provide Strict Serializable isolation but depend on the availability of the 2PC Coordinator node.
+- **Isolation**: Snapshot Isolation does not prevent write skew anomalies. If you require strict serializability for concurrent overlapping updates on different keys, you must handle write conflicts explicitly at the application level.
+
 ### 🧪 Resilience & Chaos Engineering
 - **Fault Injection Transport**: Deterministic, pseudo-random injection of network partitions, message drops, latency jitter, and packet duplication.
 - **Continuous Safety Invariant Monitoring**: Background verification continuously validates election safety, monotonic terms, log prefix consistency, and the financial balance conservation invariant ($A + B + C = \text{Constant}$).
@@ -66,9 +71,48 @@
 
 ---
 
-## Architecture & Module Dependency Graph
+## Architecture & Directory Structure
 
-AegisDB follows a strict, layered, decoupled architecture with 16 modular components.
+AegisDB follows a strict, layered, decoupled architecture with 15 module components:
+
+```text
+AegisDB/
+├── pom.xml                                      # Parent POM (Java 21 LTS, gRPC, Protobuf, JUnit 5)
+├── README.md                                    # System manual & operational guide
+├── LICENSE                                      # MIT License
+├── bin/
+│   └── aegisdb-server                           # Standalone cluster node launcher
+├── config/
+│   └── aegisdb-cluster.example.yaml             # Production cluster topology configuration
+├── docker/                                      # Docker Compose stack for Prometheus & Grafana
+├── docs/                                        # Architecture, design & ADR specifications
+│   ├── history/                                 # Historical milestones and completion reports
+│   └── adr/                                     # 12 Architectural Decision Records (ADRs)
+├── experiments/                                 # Benchmark data, results (CSV/JSON), and research plots
+├── scripts/                                     # Automated management & verification scripts
+│   ├── package-release.sh                       # Production distribution packaging
+│   ├── run-release-smoke-test.sh                # 16-step Master Demonstration scenario (§26)
+│   ├── verify-release-readiness.sh              # 28-point Master Completion Checklist validator
+│   └── test-all.sh                              # Complete unit, architecture & integration test runner
+│
+├── aegisdb-common/                              # Core domain primitives (NodeId, Endpoint, Config)
+├── aegisdb-protocol/                            # Protobuf definitions & gRPC service interfaces
+├── aegisdb-transport/                           # Transport abstraction (InMemory, Netty/gRPC)
+├── aegisdb-raft/                                # Raft consensus engine (Election, Replication, Snapshots)
+├── aegisdb-storage/                             # Persistent storage engine, WAL, Checkpoints, Recovery
+├── aegisdb-mvcc/                                # Multi-Version Concurrency Control (SI, Version Chains)
+├── aegisdb-transaction/                         # Single-shard & cross-shard 2PC transaction coordinator
+├── aegisdb-sharding/                            # Consistent hash ring, shard topology & query router
+├── aegisdb-chaos/                               # Chaos engineering, fault injection & invariant monitors
+├── aegisdb-management/                          # Management HTTP server, RBAC token auth & guardrails
+├── aegisdb-observability/                       # OpenTelemetry metrics, tracers & Prometheus exporter
+├── aegisdb-benchmark/                           # Empirical research benchmarking suite (RQ1, RQ2, RQ3)
+├── aegisdb-node/                                # DatabaseNode bootstrap, lifecycle & state orchestration
+├── aegisdb-client/                              # High-level Java Client SDK with transparent retries
+└── aegisdb-integration/                         # Integration test suites & system release scenarios
+```
+
+### Module Dependency Graph
 
 ```mermaid
 graph TD
