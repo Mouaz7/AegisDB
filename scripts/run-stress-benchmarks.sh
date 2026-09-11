@@ -7,6 +7,6 @@ echo "  Evaluating Modules: Phases 1 to 6 Under Concurrency & Load"
 echo "======================================================================="
 
 mvn exec:java \
-    -pl aegisdb_integration \
+    -pl aegisdb-integration \
     -Dexec.mainClass=se.mouaz.aegisdb.integration.StressBenchmarkSuite \
     -Dexec.classpathScope=test

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>se.mouaz.aegisdb</groupId>
+        <artifactId>aegisdb-parent</artifactId>
+        <version>0</version>
+    </parent>
+
+    <artifactId>aegisdb-integration</artifactId>
+    <packaging>jar</packaging>
+
+    <name>AegisDB Integration Tests</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-protocol</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-transport</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-node</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-raft</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-storage</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-mvcc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-transaction</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-sharding</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-chaos</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-management</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-observability</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>se.mouaz.aegisdb</groupId>
+            <artifactId>aegisdb-benchmark</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+        </dependency>
+    </dependencies>
+</project>

@@ -66,53 +66,34 @@
 
 ---
 
-## Architectural Architecture
+## Architecture & Module Dependency Graph
 
-AegisDB follows a strict, layered, decoupled architecture with 16 modular components:
+AegisDB follows a strict, layered, decoupled architecture with 16 modular components.
 
-```text
-AegisDB/
-├── pom.xml                                      # Parent POM (Java 21, gRPC, Protobuf, JUnit 5)
-├── README.md                                    # System manual & operational guide
-├── LICENSE                                      # MIT License
-├── bin/
-│   └── aegisdb-server                           # Standalone cluster node launcher
-├── config/
-│   └── aegisdb-cluster.yaml                     # Production cluster topology configuration
-├── docker/                                      # Docker Compose stack for Prometheus & Grafana
-├── docs/                                        # Architecture, design & ADR specifications
-│   ├── architecture.md                          # Comprehensive system architecture & decoupling
-│   ├── failure_model.md                         # Failure models (fail-stop, crash-recovery, partitions)
-│   ├── consistency.md                           # Consistency model (Linearizability & Snapshot Isolation)
-│   ├── raft.md                                  # Raft consensus engine technical manual
-│   ├── storage.md                               # Storage engine, binary WAL framing & recovery
-│   ├── snapshots.md                             # Log compaction & chunked RPC snapshot streaming
-│   ├── security.md                              # Security guardrails, RBAC & threat mitigation
-│   ├── experiments.md                           # Empirical benchmark methodology & results
-│   ├── master-completion-report.md              # 28-point Master Completion verification report
-│   └── adr/                                     # 12 Architectural Decision Records (ADRs)
-├── experiments/                                 # Benchmark data, results (CSV/JSON), and research plots
-├── scripts/                                     # Automated management & verification scripts
-│   ├── package-release.sh                       # Production distribution packaging
-│   ├── run-release-smoke-test.sh                # 16-step Master Demonstration scenario (§26)
-│   ├── verify-master-checklist.sh               # 28-point Master Completion Checklist validator
-│   └── test-all.sh                              # Complete unit, architecture & integration test runner
-│
-├── aegisdb_common/                              # Core domain primitives (NodeId, Endpoint, Config)
-├── aegisdb_protocol/                            # Protobuf definitions & gRPC service interfaces
-├── aegisdb_transport/                           # Transport abstraction (InMemory, Netty/gRPC)
-├── aegisdb_raft/                                # Raft consensus engine (Election, Replication, Snapshots)
-├── aegisdb_storage/                             # Persistent storage engine, WAL, Checkpoints, Recovery
-├── aegisdb_mvcc/                                # Multi-Version Concurrency Control (SI, Version Chains)
-├── aegisdb_transaction/                         # Single-shard & cross-shard 2PC transaction coordinator
-├── aegisdb_sharding/                            # Consistent hash ring, shard topology & query router
-├── aegisdb_chaos/                               # Chaos engineering, fault injection & invariant monitors
-├── aegisdb_management/                          # Management HTTP server, RBAC token auth & guardrails
-├── aegisdb_observability/                       # OpenTelemetry metrics, tracers & Prometheus exporter
-├── aegisdb_benchmark/                           # Empirical research benchmarking suite (RQ1, RQ2, RQ3)
-├── aegisdb_node/                                # DatabaseNode bootstrap, lifecycle & state orchestration
-├── aegisdb_client/                              # High-level Java Client SDK with transparent retries
-└── aegisdb_integration/                         # Integration test suites & master capstone scenario
+```mermaid
+graph TD
+    Client[aegisdb-client] --> Sharding[aegisdb-sharding]
+    Client --> Transport[aegisdb-transport]
+    Sharding --> Tx[aegisdb-transaction]
+    Tx --> Node[aegisdb-node]
+    Node --> Raft[aegisdb-raft]
+    Node --> MVCC[aegisdb-mvcc]
+    Node --> Storage[aegisdb-storage]
+    Node --> Mgmt[aegisdb-management]
+    Raft --> Transport
+    Raft --> Protocol[aegisdb-protocol]
+    Mgmt --> Protocol
+    
+    subgraph Core Primitives
+        Common[aegisdb-common]
+    end
+    
+    subgraph Operations
+        Chaos[aegisdb-chaos]
+        Observability[aegisdb-observability]
+        Integration[aegisdb-integration]
+        Benchmark[aegisdb-benchmark]
+    end
 ```
 
 ---
@@ -183,66 +164,76 @@ ls -lh
 
 ## Operating an AegisDB Cluster
 
-### Configuration File (`config/aegisdb-cluster.yaml`)
+### Minimal Quick Start (CI/Local Test)
+To start a standalone 3-node cluster using the example configuration:
+```bash
+# Start nodes in separate terminals
+./bin/aegisdb-server --config config/aegisdb-cluster.example.yaml --node-id node-1
+./bin/aegisdb-server --config config/aegisdb-cluster.example.yaml --node-id node-2
+./bin/aegisdb-server --config config/aegisdb-cluster.example.yaml --node-id node-3
+```
+
+### Configuration File (`config/aegisdb-cluster.example.yaml`)
 
 AegisDB nodes are configured via YAML:
 
 ```yaml
 cluster:
-  clusterId: "aegis-production-cluster"
+  cluster_id: "aegis-production-cluster"
   nodes:
-    - id: "node-1"
-      host: "127.0.0.1"
-      port: 9001
-      managementPort: 9101
-    - id: "node-2"
-      host: "127.0.0.1"
-      port: 9002
-      managementPort: 9102
-    - id: "node-3"
-      host: "127.0.0.1"
-      port: 9003
-      managementPort: 9103
+    - node_id: "node-1"
+      endpoint:
+        host: "127.0.0.1"
+        port: 9001
+      management:
+        enabled: true
+        port: 9101
+    - node_id: "node-2"
+      endpoint:
+        host: "127.0.0.1"
+        port: 9002
+      management:
+        enabled: true
+        port: 9102
+    - node_id: "node-3"
+      endpoint:
+        host: "127.0.0.1"
+        port: 9003
+      management:
+        enabled: true
+        port: 9103
 
 storage:
-  dataDir: "/var/lib/aegisdb/data"
-  maxSegmentSizeBytes: 67108864       # 64 MB WAL segment size
-  fsyncOnWrite: true
-  snapshotIntervalEntries: 10000
+  data_dir: "/var/lib/aegisdb/data"
+  wal_segment_size_bytes: 67108864       # 64 MB WAL segment size
+  fsync_policy: "EVERY_COMMIT"
+  fsync_interval_ms: 10
 
 raft:
-  electionTimeoutMinMs: 150
-  electionTimeoutMaxMs: 300
-  heartbeatIntervalMs: 50
+  election_timeout_min_ms: 150
+  election_timeout_max_ms: 300
+  heartbeat_interval_ms: 50
 
 security:
-  managementEnabled: true
-  adminToken: "aegis-admin-secret-token"
-  monitorToken: "aegis-monitor-secret-token"
-  maxKeySizeBytes: 1024               # 1 KB
-  maxValueSizeBytes: 16777216         # 16 MB
-  rateLimitPerSecond: 10000
+  rbac:
+    enabled: true
+    admin_token: "${AEGISDB_ADMIN_TOKEN}"
+    monitor_token: "${AEGISDB_MONITOR_TOKEN}"
+  tls:
+    enabled: true
+    cert_path: "${AEGISDB_TLS_CERT_PATH}"
+    key_path: "${AEGISDB_TLS_KEY_PATH}"
 ```
 
-### Starting Cluster Nodes
-Launch each node with its corresponding identifier:
-
-```bash
-# Start Node 1
-./bin/aegisdb-server --config config/aegisdb-cluster.yaml --node-id node-1
-
-# Start Node 2 (in another terminal)
-./bin/aegisdb-server --config config/aegisdb-cluster.yaml --node-id node-2
-
-# Start Node 3 (in another terminal)
-./bin/aegisdb-server --config config/aegisdb-cluster.yaml --node-id node-3
-```
+**Security Contexts:**
+- **Development Defaults:** For local development, TLS can be disabled (`tls.enabled: false`) and tokens can be set via environment variables.
+- **Production Requirements:** In production, TLS MUST be enabled (`tls.enabled: true`) with valid certificate paths. If TLS is enabled but paths are empty, the node will fail-closed. Tokens must be injected via secure orchestrator secrets.
 
 ---
 
 ## Developer Guide: Java Client SDK
 
-AegisDB provides a high-level, thread-safe Java Client SDK (`aegisdb_client`) that handles connection pooling, transparent leader discovery, failover redirection, and transactions.
+AegisDB provides a high-level, thread-safe Java Client SDK (`aegisdb-client`) that handles connection pooling, transparent leader discovery, failover redirection, and transactions.
 
 ### 1. Basic Key-Value Operations
 ```java
@@ -349,8 +340,8 @@ curl -H "Authorization: Bearer aegis-monitor-secret-token" \
 Key exported metrics include:
 - `aegisdb_write_total`: Total linearizable write operations committed.
 - `aegisdb_read_total`: Total reads processed.
-- `aegisdb_raft_term`: Current Raft term.
-- `aegisdb_raft_commit_index`: Monotonically increasing committed log index.
+- `aegisdb-raft_term`: Current Raft term.
+- `aegisdb-raft_commit_index`: Monotonically increasing committed log index.
 - `aegisdb_active_transactions`: Gauge of in-flight active transactions.
 - `aegisdb_write_conflict_aborts_total`: Count of MVCC write-write conflict rollbacks.
 
@@ -377,7 +368,7 @@ docker compose up -d
 
 ## Empirical Research Benchmarking
 
-AegisDB includes a scientific benchmark harness (`aegisdb_benchmark`) to empirically evaluate distributed systems trade-offs across three primary research questions:
+AegisDB includes a scientific benchmark harness (`aegisdb-benchmark`) to empirically evaluate distributed systems trade-offs across three primary research questions:
 
 1. **RQ1 (Write Batching Trade-Off)**: Evaluates write throughput (ops/sec) and tail latency (P95/P99) across varying batch sizes (1, 10, 50, 100).
    - *Result*: Amortizing disk fsync and network RPCs through batching yields a **~6.6x throughput increase** from batch size 1 to 50.
@@ -388,7 +379,7 @@ AegisDB includes a scientific benchmark harness (`aegisdb_benchmark`) to empiric
 
 ### Running the Research Benchmark Suite
 ```bash
-mvn exec:java -pl aegisdb_benchmark \
+mvn exec:java -pl aegisdb-benchmark \
     -Dexec.mainClass=se.mouaz.aegisdb.benchmark.ExperimentSuiteRunner
 ```
 Results and provenance metadata are exported directly to:

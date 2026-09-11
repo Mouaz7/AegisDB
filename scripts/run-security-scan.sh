@@ -30,13 +30,13 @@ echo "  ✓ Zero hardcoded credentials or private keys detected in repository."
 # 3. Security Guardrails & Input Boundary Verification
 echo ""
 echo "▶ [3/4] Verifying security guardrails (Input bounding & Path Traversal defense)..."
-mvn test -pl aegisdb_management -Dtest=ManagementServerSecurityTest#inputBoundingAndPathTraversalDefense
+mvn test -pl aegisdb-management -Dtest=ManagementServerSecurityTest#inputBoundingAndPathTraversalDefense
 echo "  ✓ Input boundaries (Key <= 1KB, Payload <= 16MB) and Path Traversal sanitized."
 
 # 4. Management RBAC & Rate Limiting Verification
 echo ""
 echo "▶ [4/4] Verifying RBAC token validation and DoS rate limiter gates..."
-mvn test -pl aegisdb_management -Dtest=ManagementServerSecurityTest#unauthenticatedRequestReturns401,ManagementServerSecurityTest#monitorRoleAccessAndForbiddenAdmin,ManagementServerSecurityTest#adminRoleCanExecuteAdminEndpoints,ManagementServerSecurityTest#rateLimiterThrottlesRequests
+mvn test -pl aegisdb-management -Dtest=ManagementServerSecurityTest#unauthenticatedRequestReturns401,ManagementServerSecurityTest#monitorRoleAccessAndForbiddenAdmin,ManagementServerSecurityTest#adminRoleCanExecuteAdminEndpoints,ManagementServerSecurityTest#rateLimiterThrottlesRequests
 echo "  ✓ RBAC Bearer authentication and token-bucket rate limiting verified."
 
 echo ""
