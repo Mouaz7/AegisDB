@@ -15,16 +15,33 @@ public class GrpcChannelManager implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(GrpcChannelManager.class);
 
     private final Map<NodeId, ManagedChannel> channels = new ConcurrentHashMap<>();
+    private final boolean useTls;
+
+    public GrpcChannelManager() {
+        this(false); // Default to explicit plaintext in dev/test
+    }
+
+    public GrpcChannelManager(boolean useTls) {
+        this.useTls = useTls;
+    }
+
+    public boolean isTlsEnabled() {
+        return useTls;
+    }
 
     public ManagedChannel getOrCreateChannel(NodeId destination, Endpoint endpoint) {
         return channels.compute(destination, (id, existing) -> {
             if (existing != null && !existing.isShutdown() && !existing.isTerminated()) {
                 return existing;
             }
-            log.debug("Creating new gRPC channel to node {} at {}", id, endpoint);
-            return ManagedChannelBuilder.forAddress(endpoint.host(), endpoint.port())
-                    .useTransportSecurity() // Replaced plaintext with TLS
-                    .build();
+            log.debug("Creating new gRPC channel to node {} at {} (TLS: {})", id, endpoint, useTls);
+            ManagedChannelBuilder<?> builder = ManagedChannelBuilder.forAddress(endpoint.host(), endpoint.port());
+            if (useTls) {
+                builder.useTransportSecurity();
+            } else {
+                builder.usePlaintext();
+            }
+            return builder.build();
         });
     }
 

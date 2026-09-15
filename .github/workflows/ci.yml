@@ -26,8 +26,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Compile and Verify Modules (Master Plan §13)
-        run: mvn clean test-compile
+      - name: Make Maven Wrapper Executable
+        run: chmod +x mvnw
 
-      - name: Execute Full Test Suite & Architecture Gates (Master Plan §11 & §14)
-        run: mvn test
+      - name: Compile and Verify Modules
+        run: ./mvnw clean test-compile
+
+      - name: Execute Full Test Suite & Architecture Gates
+        run: ./mvnw test

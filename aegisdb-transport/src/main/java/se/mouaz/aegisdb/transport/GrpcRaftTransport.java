@@ -49,10 +49,18 @@ public class GrpcRaftTransport implements RaftTransport {
                              Endpoint endpoint,
                              ClusterConfiguration clusterConfig,
                              Duration requestTimeout) {
+        this(nodeId, endpoint, clusterConfig, requestTimeout, false);
+    }
+
+    public GrpcRaftTransport(NodeId nodeId,
+                             Endpoint endpoint,
+                             ClusterConfiguration clusterConfig,
+                             Duration requestTimeout,
+                             boolean useTls) {
         this.nodeId = Objects.requireNonNull(nodeId, "nodeId cannot be null");
         this.endpoint = Objects.requireNonNull(endpoint, "endpoint cannot be null");
         this.clusterConfig = Objects.requireNonNull(clusterConfig, "clusterConfig cannot be null");
-        this.channelManager = new GrpcChannelManager();
+        this.channelManager = new GrpcChannelManager(useTls);
         this.requestTimeout = requestTimeout != null ? requestTimeout : Duration.ofSeconds(2);
     }
 

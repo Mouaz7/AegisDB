@@ -1,0 +1,29 @@
+# Set default behavior to automatically normalize line endings to LF
+* text=auto eol=lf
+
+# Shell scripts and executables must always have LF line endings
+*.sh text eol=lf
+bin/* text eol=lf
+mvnw text eol=lf
+
+# Windows batch files must retain CRLF line endings
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Source code diff attributes
+*.java text diff=java eol=lf
+*.proto text eol=lf
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.jar binary
+*.tar.gz binary
+*.zip binary

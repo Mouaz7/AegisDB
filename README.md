@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Transactions-2PC%20%26%20MVCC-purple.svg" alt="2PC & MVCC" />
   <img src="https://img.shields.io/badge/Isolation-Snapshot%20Isolation-darkgreen.svg" alt="Snapshot Isolation" />
   <img src="https://img.shields.io/badge/Telemetry-OpenTelemetry%20%26%20Prometheus-red.svg" alt="Telemetry" />
-  <img src="https://img.shields.io/badge/Release-1.0.0-yellow.svg" alt="Release 1.0.0" />
+  <img src="https://img.shields.io/badge/Release-0.1.0--alpha.1-yellow.svg" alt="Release 0.1.0-alpha.1" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey.svg" alt="License MIT" />
 </p>
 
@@ -154,14 +154,14 @@ graph TD
 git clone https://github.com/Mouaz7/AegisDB.git
 cd AegisDB
 
-# Compile and package all 16 modules
-mvn clean install -DskipTests
+# Compile and package all 15 modules
+./mvnw clean install -DskipTests
 ```
 
 ### 2. Run the Full Test Suite
 AegisDB comes with comprehensive unit tests, ArchUnit architectural rule validations, and multi-node integration suites:
 ```bash
-mvn test
+./mvnw test
 ```
 *(or run `./scripts/test-all.sh`)*
 
@@ -185,21 +185,21 @@ Verify all 28 foundational requirements of the Engineering Plan:
 
 ## Production Release Packaging
 
-To build a standalone production release distribution bundle containing executables, configuration templates, documentation, and module JARs:
+To build a standalone production release distribution bundle containing executables, configuration templates, documentation, third-party runtime dependencies, and module JARs:
 
 ```bash
 ./scripts/package-release.sh
 ```
 
 The build produces release archives in `target/release/`:
-- `target/release/aegisdb-1.0.0-bin.tar.gz`
-- `target/release/aegisdb-1.0.0-bin.zip`
+- `target/release/aegisdb-0.1.0-alpha.1-bin.tar.gz`
+- `target/release/aegisdb-0.1.0-alpha.1-bin.zip`
 - Cryptographic SHA-256 checksums (`*.sha256`)
 
 To unpack and inspect the distribution:
 ```bash
-tar -xzf target/release/aegisdb-1.0.0-bin.tar.gz
-cd aegisdb-1.0.0
+tar -xzf target/release/aegisdb-0.1.0-alpha.1-bin.tar.gz
+cd aegisdb-0.1.0-alpha.1
 ls -lh
 # bin/  config/  docs/  lib/  LICENSE  README.md
 ```
@@ -223,40 +223,65 @@ AegisDB nodes are configured via YAML:
 
 ```yaml
 cluster:
-  cluster_id: "aegis-production-cluster"
-  nodes:
-    - node_id: "node-1"
-      endpoint:
-        host: "127.0.0.1"
-        port: 9001
-      management:
-        enabled: true
-        port: 9101
-    - node_id: "node-2"
-      endpoint:
-        host: "127.0.0.1"
-        port: 9002
-      management:
-        enabled: true
-        port: 9102
-    - node_id: "node-3"
-      endpoint:
-        host: "127.0.0.1"
-        port: 9003
-      management:
-        enabled: true
-        port: 9103
+  cluster_id: "aegisdb-prod-cluster"
+  shards: 3
+  replication_factor: 3
 
-storage:
-  data_dir: "/var/lib/aegisdb/data"
-  wal_segment_size_bytes: 67108864       # 64 MB WAL segment size
-  fsync_policy: "EVERY_COMMIT"
-  fsync_interval_ms: 10
+nodes:
+  - node_id: "node-1"
+    endpoint:
+      host: "127.0.0.1"
+      port: 7001
+    raft_port: 8001
+    management:
+      enabled: true
+      port: 9001
+      rate_limit:
+        requests_per_sec: 100
+        burst: 200
+
+  - node_id: "node-2"
+    endpoint:
+      host: "127.0.0.1"
+      port: 7002
+    raft_port: 8002
+    management:
+      enabled: true
+      port: 9002
+      rate_limit:
+        requests_per_sec: 100
+        burst: 200
+
+  - node_id: "node-3"
+    endpoint:
+      host: "127.0.0.1"
+      port: 7003
+    raft_port: 8003
+    management:
+      enabled: true
+      port: 9003
+      rate_limit:
+        requests_per_sec: 100
+        burst: 200
 
 raft:
   election_timeout_min_ms: 150
   election_timeout_max_ms: 300
   heartbeat_interval_ms: 50
+  batch_max_entries: 50
+  max_log_entries_before_snapshot: 1000
+
+storage:
+  data_dir: "/var/lib/aegisdb/data"
+  wal_segment_size_bytes: 67108864 # 64 MB
+  fsync_policy: "EVERY_COMMIT"
+  fsync_interval_ms: 10
+  checksum: "CRC32"
+
+transactions:
+  default_isolation_level: "SNAPSHOT_ISOLATION"
+  cross_shard_2pc_timeout_ms: 5000
+  deadlock_detection_interval_ms: 500
 
 security:
   rbac:
@@ -267,6 +292,18 @@ security:
     enabled: true
     cert_path: "${AEGISDB_TLS_CERT_PATH}"
     key_path: "${AEGISDB_TLS_KEY_PATH}"
+  guardrails:
+    max_key_bytes: 1024
+    max_value_bytes: 1048576 # 1 MB
+    max_batch_size: 500
+
+observability:
+  opentelemetry:
+    enabled: true
+    service_name: "aegisdb-engine"
+  prometheus:
+    enabled: true
+    path: "/metrics"
 ```
 
 **Security Contexts:**
@@ -290,9 +327,9 @@ import java.util.Optional;
 // Configure cluster endpoints
 AegisDbClientConfig config = AegisDbClientConfig.builder()
     .seedEndpoints(List.of(
-        Endpoint.of("127.0.0.1", 9001),
-        Endpoint.of("127.0.0.1", 9002),
-        Endpoint.of("127.0.0.1", 9003)
+        Endpoint.of("127.0.0.1", 7001),
+        Endpoint.of("127.0.0.1", 7002),
+        Endpoint.of("127.0.0.1", 7003)
     ))
     .maxRetries(3)
     .retryBackoffMs(50)
@@ -494,7 +531,7 @@ In-depth technical specifications and architectural decisions are documented in 
 - [ADR 0009: Cross-Shard Distributed Transactions](docs/adr/0009-cross-shard-distributed-transactions.md)
 - [ADR 0010: Chaos Engineering and Security Hardening](docs/adr/0010-chaos-and-security-hardening.md)
 - [ADR 0011: Observability, Benchmarking and Research](docs/adr/0011-observability-benchmarking-and-research.md)
-- [ADR 0012: Master Capstone Demonstration & System Release](docs/adr/0012-master-capstone-and-system-release.md)
+- [ADR 0012: System Release Demonstration & Readiness](docs/adr/0012-system-release-and-readiness.md)
 
 ---
 

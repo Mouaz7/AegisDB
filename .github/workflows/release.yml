@@ -27,22 +27,22 @@ jobs:
 
       - name: Build & Package Distribution (Assembly)
         run: |
-          mvn clean package -DskipTests
+          chmod +x mvnw scripts/*.sh bin/* 2>/dev/null || true
+          ./scripts/package-release.sh
 
-      - name: Run Master Capstone Smoke Test (Unpack & Verify)
+      - name: Run Release Smoke Test (Unpack & Verify)
         run: |
-          chmod +x scripts/*.sh
           ./scripts/run-release-smoke-test.sh
-          ./scripts/verify-master-checklist.sh
+          ./scripts/verify-release-readiness.sh
 
       - name: GitHub Release Publication
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            target/aegisdb-*-bin.tar.gz
-            target/aegisdb-*-bin.zip
-            target/aegisdb-*-bin.tar.gz.sha256
-            target/aegisdb-*-bin.zip.sha256
-            target/bom.json
+            target/release/aegisdb-*-bin.tar.gz
+            target/release/aegisdb-*-bin.zip
+            target/release/aegisdb-*-bin.tar.gz.sha256
+            target/release/aegisdb-*-bin.zip.sha256
+            target/release/bom.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

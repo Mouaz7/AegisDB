@@ -49,6 +49,8 @@ public class AegisConfigLoader {
                 .clusterId(ClusterId.of(clusterIdStr));
 
         JsonNode myNodeConfig = null;
+        java.util.Set<String> seenNodeIds = new java.util.HashSet<>();
+        java.util.Set<String> seenEndpoints = new java.util.HashSet<>();
 
         for (JsonNode nodeItem : nodesArray) {
             String nId = nodeItem.path("id").asText(nodeItem.path("node_id").asText(null));
@@ -58,6 +60,14 @@ public class AegisConfigLoader {
 
             if (nId == null || nHost == null || nPort <= 0 || nPort > 65535) {
                 throw new IllegalArgumentException("Invalid node configuration, missing/invalid id, host, or port: " + nodeItem);
+            }
+
+            if (!seenNodeIds.add(nId)) {
+                throw new IllegalArgumentException("Duplicate node ID detected in configuration: " + nId);
+            }
+
+            if (!seenEndpoints.add(nHost + ":" + nPort)) {
+                throw new IllegalArgumentException("Duplicate node endpoint detected in configuration: " + nHost + ":" + nPort);
             }
 
             clusterBuilder.addMember(nId, nHost, nPort);
@@ -90,6 +100,9 @@ public class AegisConfigLoader {
         JsonNode managementNode = myNodeConfig.path("management");
         boolean managementEnabled = managementNode.path("enabled").asBoolean(false);
         int managementPort = managementNode.path("port").asInt(9001);
+        if (managementEnabled && (managementPort <= 0 || managementPort > 65535)) {
+            throw new IllegalArgumentException("Invalid management port: " + managementPort);
+        }
 
         JsonNode securityNode = root.path("security");
         JsonNode rbacNode = securityNode.path("rbac");

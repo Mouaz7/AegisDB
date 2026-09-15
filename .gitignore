@@ -6,3 +6,5 @@ target/
 .vscode/
 .DS_Store
 data/
+.agents/
+.mvn/wrapper/maven-wrapper.jar

@@ -35,12 +35,12 @@ jobs:
           languages: java
 
       - name: Build Project
-        run: mvn clean compile -DskipTests
+        run: |
+          chmod +x mvnw scripts/*.sh
+          ./mvnw clean compile -DskipTests
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
       - name: Internal Hygiene & Dependency Audit
-        run: |
-          chmod +x scripts/run-security-scan.sh
-          ./scripts/run-security-scan.sh
+        run: ./scripts/run-security-scan.sh

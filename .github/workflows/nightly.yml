@@ -25,7 +25,9 @@ jobs:
           cache: 'maven'
 
       - name: Compile Tests
-        run: mvn clean test-compile
+        run: |
+          chmod +x mvnw scripts/*.sh
+          ./mvnw clean test-compile
 
       - name: Run Live Demonstration & Research Benchmarks
         run: |

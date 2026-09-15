@@ -22,7 +22,7 @@ import java.time.Duration;
  */
 public class AegisDbServer {
     private static final Logger log = LoggerFactory.getLogger(AegisDbServer.class);
-    private static final String VERSION = "1.0.0";
+    private static final String VERSION = "0.1.0-alpha.1";
 
     public static void main(String[] args) {
         String configFile = null;

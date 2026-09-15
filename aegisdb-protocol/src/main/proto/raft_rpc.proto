@@ -1,5 +1,17 @@
 syntax = "proto3";
 
+// ============================================================================
+// AegisDB Consensus & Cluster Transport Protocol Specification
+//
+// Compatibility & Breaking-Change Policy:
+// 1. Tag numbers (field numbers) MUST NEVER be changed or reused once published.
+// 2. If a field is deprecated or removed, its tag number and name MUST be added
+//    to a 'reserved' statement to prevent accidental reuse.
+// 3. New fields MUST be optional or added with default semantics to preserve
+//    backward compatibility with older nodes in mixed-version rolling upgrades.
+// 4. Do not change wire types of existing fields.
+// ============================================================================
+
 package se.mouaz.aegisdb.protocol;
 
 option java_multiple_files = true;

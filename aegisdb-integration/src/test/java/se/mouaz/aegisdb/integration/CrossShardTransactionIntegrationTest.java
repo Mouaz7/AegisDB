@@ -40,8 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 3. Crash recovery replaying coordinator journal to resolve in-doubt state.
  * 4. High-concurrency financial invariant: balance conservation A + B + C = 3000 across 3 discrete shards.
  */
-class CrossShardTransactionMilestoneM4Test {
-    private static final Logger log = LoggerFactory.getLogger(CrossShardTransactionMilestoneM4Test.class);
+class CrossShardTransactionIntegrationTest {
+    private static final Logger log = LoggerFactory.getLogger(CrossShardTransactionIntegrationTest.class);
 
     @TempDir
     Path tempDir;

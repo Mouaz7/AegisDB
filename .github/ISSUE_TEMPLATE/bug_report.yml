@@ -1,0 +1,50 @@
+name: Bug Report
+description: Report an unexpected error, fault, or test failure in AegisDB.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue in AegisDB! Please check if a similar issue is already open before creating a new report.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Exact steps to reproduce the behavior (e.g. cluster configuration, workload, commands executed).
+      placeholder: |
+        1. Start 3-node cluster with config...
+        2. Execute client PUT...
+        3. Trigger failover / kill leader...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Information
+      description: Operating System, Java version (`java -version`), and Git commit SHA.
+      placeholder: |
+        - OS: Ubuntu 22.04 / Windows 11
+        - Java: OpenJDK 21.0.2
+        - AegisDB Version: 0.1.0-alpha.1
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs or Stack Traces
+      description: Please copy and paste any relevant console output or stack traces.
+      render: shell
