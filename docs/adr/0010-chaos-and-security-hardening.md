@@ -20,8 +20,8 @@ Key requirements:
 
 ## Decision
 1. **Dedicated Modules**:
-   - `aegisdb_chaos`: Houses `FaultyTransport`, `FaultRule`, `ChaosOrchestrator`, and `ChaosInvariantMonitor`.
-   - `aegisdb_management`: Houses `ManagementHttpServer`, `ManagementSecurityManager`, `RateLimiter`, and `SecurityGuardrails`.
+   - `aegisdb-chaos`: Houses `FaultyTransport`, `FaultRule`, `ChaosOrchestrator`, and `ChaosInvariantMonitor`.
+   - `aegisdb-management`: Houses `ManagementHttpServer`, `ManagementSecurityManager`, `RateLimiter`, and `SecurityGuardrails`.
 2. **Composable Transport Decorator**:
    - `FaultyTransport` implements `RaftTransport` and wraps any underlying transport (`InMemoryTransport`, `GrpcRaftTransport`).
    - Uses a seeded `Random` generator for deterministic replayability.

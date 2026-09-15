@@ -52,7 +52,7 @@ Per Master Project Plan §20, every experiment export captures full execution pr
 ### Running the Full Experiment Suite
 ```bash
 # Execute master research benchmark harness
-mvn exec:java -pl aegisdb_benchmark \
+mvn exec:java -pl aegisdb-benchmark \
     -Dexec.mainClass=se.mouaz.aegisdb.benchmark.ExperimentSuiteRunner
 ```
 

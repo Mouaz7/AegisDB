@@ -12,7 +12,7 @@ Without deterministic file framing, checksum validation, and explicit fsync poli
 3. Unbounded read allocations risk Out-of-Memory crashes when reading malformed headers.
 
 ## Decision
-1. **Module Separation**: We establish `aegisdb_storage` with zero dependencies on gRPC or Spring.
+1. **Module Separation**: We establish `aegisdb-storage` with zero dependencies on gRPC or Spring.
 2. **Framing Standard**: Every WAL record includes:
    - 4-byte Magic Number (`0xAE615DA1`)
    - 2-byte Version (`1`)

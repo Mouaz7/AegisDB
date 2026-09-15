@@ -13,7 +13,7 @@ In accordance with Raft §7 and Section 8 of the Master Project Plan, `AegisDB` 
 - **Bounded Disk Footprint**: Commits prior to `lastIncludedIndex` are compacted from memory and disk.
 - **Fast Crash Recovery**: Restores state machine directly from the latest snapshot and replays only subsequent WAL entries.
 - **Follower Catch-up via `InstallSnapshot`**: Disconnected or slow followers whose log entries have been compacted are brought up to date via chunked snapshot transfer.
-- **Client SDK (`aegisdb_client`)**: Seamless client interactions with automatic leader discovery, transparent redirects on `NotLeaderException`, and exponential backoff retry.
+- **Client SDK (`aegisdb-client`)**: Seamless client interactions with automatic leader discovery, transparent redirects on `NotLeaderException`, and exponential backoff retry.
 - **Milestone M2 Gate**: Proven 3-node replicated cluster that survives leader crashes and node restarts without data loss.
 
 ```mermaid
@@ -103,9 +103,9 @@ message InstallSnapshotReply {
 
 ---
 
-## 5. Client Java SDK (`aegisdb_client`)
+## 5. Client Java SDK (`aegisdb-client`)
 
-Applications interface with AegisDB through `aegisdb_client`:
+Applications interface with AegisDB through `aegisdb-client`:
 ```java
 AegisDbClient client = DefaultAegisDbClient.forNodes(clusterNodes);
 

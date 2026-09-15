@@ -13,11 +13,11 @@ Key requirements:
 4. **Comprehensive Conflict Detection:** Enforce First-Committer-Wins under Snapshot Isolation (preventing Lost Updates and Write-Write conflicts) and provide Serializable Snapshot Isolation (SSI) anti-dependency checking to prevent Write Skew.
 5. **Durable Transaction Logging:** Persist lifecycle state transitions and write sets to disk via CRC32-framed segments (`DurableTransactionLog`) with torn-write truncation and restart recovery.
 6. **Idempotency & Deduplication:** Support safe retries and duplicate suppression for client transactions (`ClientId + RequestId`).
-7. **Architectural Decoupling:** Keep `aegisdb_transaction` strictly decoupled from gRPC, Spring, and outer management/chaos layers per ArchUnit rules (Master Plan §11).
+7. **Architectural Decoupling:** Keep `aegisdb-transaction` strictly decoupled from gRPC, Spring, and outer management/chaos layers per ArchUnit rules (Master Plan §11).
 
 ## Decision
-1. **Dedicated Module `aegisdb_transaction`**:
-   - Created a standalone Maven module depending only on `aegisdb_common` and `aegisdb_mvcc`.
+1. **Dedicated Module `aegisdb-transaction`**:
+   - Created a standalone Maven module depending only on `aegisdb-common` and `aegisdb-mvcc`.
    - ArchUnit tests enforce zero dependencies on Spring, gRPC, Protobuf, management, benchmark, or chaos modules.
 
 2. **4-Stage Transaction Lifecycle**:

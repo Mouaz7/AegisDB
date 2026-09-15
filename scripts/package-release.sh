@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =====================================================================
 # AegisDB Production Release Packaging Script
-# Generates aegisdb-1.0.0-bin.tar.gz, aegisdb-1.0.0-bin.zip, and SHA-256 checksums
+# Generates aegisdb-0.1.0-alpha.1-bin.tar.gz, aegisdb-0.1.0-alpha.1-bin.zip, and SHA-256 checksums
 # =====================================================================
 
 set -e
@@ -45,9 +45,12 @@ cp -r "${ROOT_DIR}/config/"* "${STAGING_DIR}/config/" 2>/dev/null || true
 # Copy documentation, community standards and metadata
 cp "${ROOT_DIR}/README.md" "${STAGING_DIR}/" 2>/dev/null || true
 cp "${ROOT_DIR}/LICENSE" "${STAGING_DIR}/" 2>/dev/null || true
+cp "${ROOT_DIR}/NOTICE" "${STAGING_DIR}/" 2>/dev/null || true
 cp "${ROOT_DIR}/SECURITY.md" "${STAGING_DIR}/" 2>/dev/null || true
 cp "${ROOT_DIR}/CONTRIBUTING.md" "${STAGING_DIR}/" 2>/dev/null || true
+cp "${ROOT_DIR}/CODE_OF_CONDUCT.md" "${STAGING_DIR}/" 2>/dev/null || true
 cp "${ROOT_DIR}/CHANGELOG.md" "${STAGING_DIR}/" 2>/dev/null || true
+cp "${ROOT_DIR}/SUPPORT.md" "${STAGING_DIR}/" 2>/dev/null || true
 cp -r "${ROOT_DIR}/docs/"* "${STAGING_DIR}/docs/"
 
 # Copy scripts

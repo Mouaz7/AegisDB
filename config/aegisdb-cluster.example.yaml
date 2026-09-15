@@ -1,6 +1,6 @@
 # =====================================================================
 # AegisDB Production Cluster Configuration Template
-# Master Project Plan §2, §3, §4, §8, §10, §12 & §24
+# High-availability Multi-Raft Partitioned Cluster Specification
 # =====================================================================
 
 cluster:

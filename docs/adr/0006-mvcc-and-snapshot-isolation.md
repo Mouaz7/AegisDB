@@ -58,7 +58,7 @@ Key design requirements:
 - **Extreme Concurrent Read Throughput**: Lock-free reads guarantee zero lock contention and zero wait-time for readers.
 - **Repeatable Reads & Anomaly Prevention**: Snapshot Isolation completely eliminates Dirty Reads, Lost Updates, and Non-Repeatable Reads.
 - **Bounded Memory Footprint**: Background/on-demand GC continuously reclaims obsolete version nodes and tombstone keys.
-- **Strict Architectural Independence**: `aegisdb_mvcc` module has 0 dependencies on Spring, gRPC, or management libraries, proven by automated ArchUnit tests.
+- **Strict Architectural Independence**: `aegisdb-mvcc` module has 0 dependencies on Spring, gRPC, or management libraries, proven by automated ArchUnit tests.
 
 ### Negative
 - Multi-version chains consume additional heap memory until garbage collection reclaims obsolete historical nodes.

@@ -36,7 +36,7 @@ Key design requirements:
 
 4. **KeyValueStateMachine & Client SDK**:
    - `KeyValueStateMachine` uses `ConcurrentSkipListMap<String, byte[]>` for deterministic ordering and snapshot serialization.
-   - Dedicated client module `aegisdb_client` provides `AegisDbClient` with automatic leader tracking, transparent redirect on `NotLeaderException`, and exponential backoff retry.
+   - Dedicated client module `aegisdb-client` provides `AegisDbClient` with automatic leader tracking, transparent redirect on `NotLeaderException`, and exponential backoff retry.
 
 ## Consequences
 ### Positive

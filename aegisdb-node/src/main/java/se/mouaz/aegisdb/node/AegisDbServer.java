@@ -17,8 +17,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 
 /**
- * Standalone launcher for AegisDB nodes (Master Project Plan §11).
- * Allows starting a single node from the command line.
+ * Standalone launcher for AegisDB distributed database nodes.
+ * Allows starting a single node from the command line with structured flags.
  */
 public class AegisDbServer {
     private static final Logger log = LoggerFactory.getLogger(AegisDbServer.class);

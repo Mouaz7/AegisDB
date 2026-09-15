@@ -40,7 +40,7 @@ The following layer boundaries are mandatory in the system design:
 2. **Storage vs. Transport:**
    The storage engine (`StorageEngine` and `WalManager`) has zero coupling to gRPC or network layers.
 3. **Core vs. Framework:**
-   The data engine core (Raft, WAL, MVCC, Transactions) maintains zero dependencies on Spring. Spring Boot is used exclusively in `aegisdb_management` for external administration and health APIs.
+   The data engine core (Raft, WAL, MVCC, Transactions) maintains zero dependencies on Spring. Spring Boot is used exclusively in `aegisdb-management` for external administration and health APIs.
 
 ---
 
@@ -56,30 +56,30 @@ AegisDB/
 ├── scripts/                  # Build, test, and live demonstration scripts
 ├── experiments/              # Benchmarks & research experiments
 │
-├── aegisdb_common/           # Domain models (NodeId, Endpoint, NodeStatus, TransactionId, ClientId, RequestId)
-├── aegisdb_protocol/         # Protobuf contracts & gRPC RPC definitions
-├── aegisdb_transport/        # GrpcRaftTransport & InMemoryTransport
-├── aegisdb_node/             # DatabaseNode, NodeBootstrap & NodeLifecycle
-├── aegisdb_integration/      # 3-node cluster tests & verification demos
-├── aegisdb_raft/             # Raft Consensus, Election, Replication & Snapshots
-├── aegisdb_storage/          # StorageEngine, WAL, CRC32 & Snapshots
-├── aegisdb_client/           # Java SDK Client & Leader Redirect
-├── aegisdb_mvcc/             # Multi-Version Concurrency Control (MvccStore, Snapshots, VersionChains)
-├── aegisdb_transaction/      # Single-shard transactions, isolation levels, validation, conflict detection & durable logging
-├── aegisdb_sharding/         # HashPartitioner, ShardMap & Routing
-├── aegisdb_management/       # Lightweight REST Management API, RBAC Bearer Token Auth & Security Guardrails
-├── aegisdb_observability/    # OpenTelemetry & Prometheus metrics
-├── aegisdb_chaos/            # Fault injection, network partition & continuous invariant testing
-└── aegisdb_benchmark/        # Latency & throughput benchmarks
+├── aegisdb-common/           # Domain models (NodeId, Endpoint, NodeStatus, TransactionId, ClientId, RequestId)
+├── aegisdb-protocol/         # Protobuf contracts & gRPC RPC definitions
+├── aegisdb-transport/        # GrpcRaftTransport & InMemoryTransport
+├── aegisdb-node/             # DatabaseNode, NodeBootstrap & NodeLifecycle
+├── aegisdb-integration/      # 3-node cluster tests & verification demos
+├── aegisdb-raft/             # Raft Consensus, Election, Replication & Snapshots
+├── aegisdb-storage/          # StorageEngine, WAL, CRC32 & Snapshots
+├── aegisdb-client/           # Java SDK Client & Leader Redirect
+├── aegisdb-mvcc/             # Multi-Version Concurrency Control (MvccStore, Snapshots, VersionChains)
+├── aegisdb-transaction/      # Single-shard transactions, isolation levels, validation, conflict detection & durable logging
+├── aegisdb-sharding/         # HashPartitioner, ShardMap & Routing
+├── aegisdb-management/       # Lightweight REST Management API, RBAC Bearer Token Auth & Security Guardrails
+├── aegisdb-observability/    # OpenTelemetry & Prometheus metrics
+├── aegisdb-chaos/            # Fault injection, network partition & continuous invariant testing
+└── aegisdb-benchmark/        # Latency & throughput benchmarks
 ```
 
 ---
 
 ## 4. Transaction & Concurrency Architecture
 
-The `aegisdb_transaction` module provides atomic, single-shard ACID transactions with Snapshot Isolation (SI) and Serializable Snapshot Isolation (SSI):
+The `aegisdb-transaction` module provides atomic, single-shard ACID transactions with Snapshot Isolation (SI) and Serializable Snapshot Isolation (SSI):
 
-- **Decoupled Architecture:** Zero coupling to transport, network, gRPC, or Spring frameworks. Depends solely on `aegisdb_common` and `aegisdb_mvcc`.
+- **Decoupled Architecture:** Zero coupling to transport, network, gRPC, or Spring frameworks. Depends solely on `aegisdb-common` and `aegisdb-mvcc`.
 - **4-State Lifecycle:** Explicit state machine enforcing `ACTIVE -> PREPARING -> PREPARED -> COMMITTED` and `ACTIVE/PREPARING/PREPARED -> ABORTED`.
 - **Isolation Modes:**
   - *Snapshot Isolation (SI):* Readers observe a consistent snapshot; concurrent writers detect collisions via First-Committer-Wins.

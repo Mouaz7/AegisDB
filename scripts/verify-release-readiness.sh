@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =====================================================================
-# AegisDB Master Completion Checklist Automated Verification (§28)
-# Master Project Plan §1, §3, §14, §17, §19, §20, §26 & §28
+# AegisDB Production Release Verification Suite
+# Verifies all core distributed invariants and quality gates
 # =====================================================================
 
 set -e

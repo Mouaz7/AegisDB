@@ -1,7 +1,7 @@
 # AegisDB Multi-Version Concurrency Control (MVCC) Engine
 
 ## 1. Overview
-The `aegisdb_mvcc` module implements a high-throughput, lock-free Multi-Version Concurrency Control (MVCC) storage engine providing **Snapshot Isolation (SI)** as defined in Master Project Plan §9 & §17 (Phase 6, US011).
+The `aegisdb-mvcc` module implements a high-throughput, lock-free Multi-Version Concurrency Control (MVCC) storage engine providing **Snapshot Isolation (SI)** as defined in Master Project Plan §9 & §17 (Phase 6, US011).
 
 In AegisDB:
 - **Readers never block writers.**

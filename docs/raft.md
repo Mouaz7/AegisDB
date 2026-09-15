@@ -4,7 +4,7 @@
 
 ## 1. Overview
 
-The `aegisdb_raft` module implements the Raft consensus protocol in Java 21 in accordance with Ongaro & Ousterhout (§5.1, §5.2, §5.3, §5.4) and the course specification (Sections 18, 20, 21, 22, 23, 24, 75, 82, 83, and 107).
+The `aegisdb-raft` module implements the Raft consensus protocol in Java 21 in accordance with Ongaro & Ousterhout (§5.1, §5.2, §5.3, §5.4) and the course specification (Sections 18, 20, 21, 22, 23, 24, 75, 82, 83, and 107).
 
 It guarantees strong consistency and fault tolerance through:
 - **Exactly one leader per term:** Only one node can win the election in any given term ($> N/2$ votes).

@@ -12,11 +12,11 @@ Key requirements:
 3. **Dynamic Leader Tracking & Invalidation:** Clients must cache shard leaders, invalidate stale leaders upon failover, and dynamically follow `leaderHint` redirects from non-leaders.
 4. **Transparent Query Routing:** The client SDK must route CRUD operations to target shards without requiring developers to manually resolve shard topology.
 5. **Shard Fault Isolation:** Leader failures or re-elections in one shard must not affect the operational throughput or latency of other shards.
-6. **Clean Architecture:** Keep `aegisdb_sharding` strictly decoupled from Spring, gRPC, and outer management modules per ArchUnit rules (Master Plan §11).
+6. **Clean Architecture:** Keep `aegisdb-sharding` strictly decoupled from Spring, gRPC, and outer management modules per ArchUnit rules (Master Plan §11).
 
 ## Decision
-1. **Dedicated Module `aegisdb_sharding`**:
-   - Created a standalone Maven module depending only on `aegisdb_common` and `aegisdb_raft`.
+1. **Dedicated Module `aegisdb-sharding`**:
+   - Created a standalone Maven module depending only on `aegisdb-common` and `aegisdb-raft`.
    - ArchUnit tests enforce zero dependencies on Spring, gRPC, Protobuf, management, benchmark, or chaos modules.
 
 2. **MurmurHash3 Partitioning with `Math.floorMod`**:

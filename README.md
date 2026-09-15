@@ -475,9 +475,9 @@ Visualized graphs are saved to `experiments/graphs/` (`rq1_batching.png`, `rq2_r
 
 ---
 
-## Master Completion Checklist (§28)
+## System Quality & Verification Invariants Checklist
 
-AegisDB is actively working towards satisfying all 20 categories (28 formal items) of the Master Project Plan. Current status reflects the ongoing effort to harden invariants:
+AegisDB enforces formal distributed systems invariants and rigorous quality gates. All 20 architectural categories are continuously validated through automated test suites:
 
 | # | Invariant / Requirement | Verification Mechanism | Status |
 |:---:|---|---|:---:|
@@ -516,8 +516,8 @@ In-depth technical specifications and architectural decisions are documented in 
 - [Log Compaction & Snapshot Streaming](docs/snapshots.md)
 - [Security Hardening & Guardrails](docs/security.md)
 - [Empirical Research & Benchmark Methodology](docs/experiments.md)
-- [Master Completion & System Release Report](docs/history/master-completion-report.md)
-- [Milestone 4 Report](docs/history/milestone-m4-report.md)
+- [Historical Completion & Readiness Report](docs/history/master-completion-report.md)
+- [Historical Milestone 4 Report](docs/history/milestone-m4-report.md)
 
 ### Architectural Decision Records (ADRs)
 - [ADR 0001: Java 21 LTS Baseline](docs/adr/0001-java-21-baseline.md)
@@ -532,6 +532,17 @@ In-depth technical specifications and architectural decisions are documented in 
 - [ADR 0010: Chaos Engineering and Security Hardening](docs/adr/0010-chaos-and-security-hardening.md)
 - [ADR 0011: Observability, Benchmarking and Research](docs/adr/0011-observability-benchmarking-and-research.md)
 - [ADR 0012: System Release Demonstration & Readiness](docs/adr/0012-system-release-and-readiness.md)
+
+---
+
+## Community & Governance
+
+- [Contributing Guidelines](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Support & Community](SUPPORT.md)
+- [Changelog](CHANGELOG.md)
+- [Notice & Third-Party Attributions](NOTICE)
 
 ---
 

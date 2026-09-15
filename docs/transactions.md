@@ -1,7 +1,7 @@
 # AegisDB Single-Shard Transaction Engine
 
 ## 1. Overview
-The `aegisdb_transaction` module implements an ACID-compliant Single-Shard Transaction Engine providing **Snapshot Isolation (SI)** and optional **Serializable Snapshot Isolation (SSI)** per **Master Project Plan §5, §9, §11, §14, §17, §18 & §20 (Phase 7, US012; Milestone M3 Gate)**.
+The `aegisdb-transaction` module implements an ACID-compliant Single-Shard Transaction Engine providing **Snapshot Isolation (SI)** and optional **Serializable Snapshot Isolation (SSI)** per **Master Project Plan §5, §9, §11, §14, §17, §18 & §20 (Phase 7, US012; Milestone M3 Gate)**.
 
 In AegisDB:
 - **Atomicity:** All mutations in a transaction are committed as a single atomic unit or rolled back completely.

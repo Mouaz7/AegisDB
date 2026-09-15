@@ -14,10 +14,10 @@ Key requirements:
 
 ## Decision
 1. **Protocol Buffers (.proto) over gRPC for Network Transport**:
-   - `aegisdb_protocol` defines canonical Protobuf contracts (`raft_rpc.proto`).
+   - `aegisdb-protocol` defines canonical Protobuf contracts (`raft_rpc.proto`).
    - `GrpcRaftTransport` provides high-throughput production networking using Netty-shaded gRPC with keepalives and channel pooling.
 2. **Pluggable Transport Abstraction (`RaftTransport`)**:
-   - Core consensus logic in `aegisdb_raft` interacts only with the `RaftTransport` interface, never with gRPC directly.
+   - Core consensus logic in `aegisdb-raft` interacts only with the `RaftTransport` interface, never with gRPC directly.
 3. **Deterministic `InMemoryTransport`**:
    - For fast, deterministic unit, property, and integration tests, `InMemoryTransport` enables multi-node clusters within a single JVM without network sockets or port allocations.
    - Supports fault injection (`FaultyTransport`) for simulated message delays, packet drops, and network partitions.

@@ -23,12 +23,12 @@ Key requirements:
    - Pre-provisioned Grafana dashboard JSON visualizing cluster state, terms, throughput, latency percentiles, and abort rates.
    - Python visualization script generating publication-ready research graphs.
 4. **Clean Architecture (§11)**:
-   - Observability and benchmarking subsystems must reside in decoupled modules (`aegisdb_observability` and `aegisdb_benchmark`), leaving core consensus and storage unburdened by external monitoring frameworks.
+   - Observability and benchmarking subsystems must reside in decoupled modules (`aegisdb-observability` and `aegisdb-benchmark`), leaving core consensus and storage unburdened by external monitoring frameworks.
 
 ## Decision
 1. **Dedicated Modules**:
-   - `aegisdb_observability`: Contains `AegisMetrics`, `AegisTracer`, and `AegisTelemetry`.
-   - `aegisdb_benchmark`: Contains `BenchmarkConfig`, `BenchmarkResult`, `RQ1BatchingBenchmark`, `RQ2FailureRecoveryBenchmark`, `RQ3ContentionBenchmark`, and `ExperimentSuiteRunner`.
+   - `aegisdb-observability`: Contains `AegisMetrics`, `AegisTracer`, and `AegisTelemetry`.
+   - `aegisdb-benchmark`: Contains `BenchmarkConfig`, `BenchmarkResult`, `RQ1BatchingBenchmark`, `RQ2FailureRecoveryBenchmark`, `RQ3ContentionBenchmark`, and `ExperimentSuiteRunner`.
 2. **High-Performance Concurrent Metrics**:
    - Used Java concurrency primitives (`LongAdder`, `AtomicLong`, `ConcurrentLinkedDeque`) to guarantee lock-free recording on hot paths.
    - Sliding-window percentile reservoir computes P50, P95, and P99 tail latencies on demand.

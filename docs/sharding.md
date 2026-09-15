@@ -1,7 +1,7 @@
 # AegisDB Sharding and Routing Architecture
 
 **Plan Version:** 1.0 | September 2026  
-**Module:** `aegisdb_sharding` (with `aegisdb_common`, `aegisdb_client`, and `aegisdb_integration`)  
+**Module:** `aegisdb-sharding` (with `aegisdb-common`, `aegisdb-client`, and `aegisdb-integration`)  
 **User Stories:** US013, US014 | Master Project Plan §4, §5, §10, §17, §18
 
 ---

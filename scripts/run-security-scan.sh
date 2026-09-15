@@ -3,7 +3,7 @@ set -e
 
 echo "======================================================================="
 echo "  AegisDB: Security Hardening & Dependency Vulnerability Scan"
-echo "  US017 | Master Project Plan §12 (Secure-by-Design) & §13 (Quality Gates)"
+echo "  Static Analysis, Dependency CVE Audits & Hardening Verification"
 echo "======================================================================="
 
 MVN_CMD="mvn"

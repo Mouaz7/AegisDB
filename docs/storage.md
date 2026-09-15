@@ -7,7 +7,7 @@
 
 ## 1. Overview & Architecture
 
-The `aegisdb_storage` engine provides disk persistence and crash recovery for AegisDB, satisfying Ongaro §5.2 and Section 8 of the Master Project Plan.
+The `aegisdb-storage` engine provides disk persistence and crash recovery for AegisDB, satisfying Ongaro §5.2 and Section 8 of the Master Project Plan.
 
 ### Architectural Rules
 - **No Spring / No gRPC**: The storage engine is strictly decoupled from network protocols and application frameworks.
