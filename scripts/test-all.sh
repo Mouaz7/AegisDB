@@ -5,4 +5,10 @@ echo "=============================================="
 echo "  AegisDB: Run all unit and integration tests"
 echo "=============================================="
 
-mvn clean test
+MVN_CMD="mvn"
+if [ -x "./mvnw" ]; then
+    MVN_CMD="./mvnw"
+fi
+
+$MVN_CMD clean test
+

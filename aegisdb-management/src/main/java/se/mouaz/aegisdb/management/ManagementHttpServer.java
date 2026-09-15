@@ -107,6 +107,21 @@ public class ManagementHttpServer implements AutoCloseable {
             return;
         }
 
+        // 2. Request Body Limit Guard
+        String contentLengthHeader = exchange.getRequestHeaders().getFirst("Content-Length");
+        if (contentLengthHeader != null) {
+            try {
+                long length = Long.parseLong(contentLengthHeader);
+                if (length > 1024 * 1024) { // 1 MB limit for management requests
+                    log.warn("Management request payload exceeds 1MB limit ({} bytes) from {}", length, clientIp);
+                    sendError(exchange, 413, "Payload Too Large: Management request body must not exceed 1 MB");
+                    return;
+                }
+            } catch (NumberFormatException ignored) {
+                // Ignore unparseable content-length header and allow stream to process
+            }
+        }
+
         // 2. Authentication
         String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
         Optional<SecurityPrincipal> principalOpt = securityManager.authenticate(authHeader);

@@ -25,3 +25,31 @@ AegisDB operates on a crash-recovery model under asynchronous network assumption
 - **Path Traversal Test**: Validates that crafted directory names or filenames cannot escape the configured data directory.
 - **Malformed Protocol Buffer Tests**: Corrupted bytes, negative lengths, and invalid magic numbers immediately trigger `CorruptedWalException` or `TransportException`.
 - **Oversized Record Rejection**: Attempts to persist or transmit records exceeding the 16 MB boundary are safely rejected before memory allocation.
+
+---
+
+## 4. Configuration Precedence & Secrets Handling
+
+To prevent accidental exposure of sensitive credentials in process listings (`ps aux`), AegisDB enforces a strict configuration precedence hierarchy:
+
+```text
+CLI Arguments > Environment Variables > YAML Configuration > Safe Defaults
+```
+
+### Secrets Rules
+1. **No Tokens via CLI**: Passwords and bearer tokens (`AEGISDB_ADMIN_TOKEN`, `AEGISDB_MONITOR_TOKEN`) MUST NOT be passed directly as CLI flags where they could appear in system process tables or shell histories.
+2. **Environment Variable Substitution**: The YAML configuration parser automatically resolves `${VAR_NAME}` placeholders from environment variables at runtime.
+3. **Fail-Closed Validation**: If TLS is enabled (`security.tls.enabled: true`), certificate paths (`cert_path`, `key_path`) must be non-empty, existing files; otherwise the node fails fast and terminates at startup.
+
+---
+
+## 5. Management API & Transport Security
+
+### Local Development Mode
+- Transport security runs in explicit dev/test plaintext mode when TLS is not configured.
+- Embedded management server binds to loopback (`127.0.0.1`) by default to prevent accidental external network exposure.
+
+### Production Requirements
+- **Inter-Node gRPC**: In distributed production topologies spanning non-loopback networks, TLS/mTLS MUST be enabled.
+- **Management Plane HTTP**: The embedded management HTTP server should either remain bound to loopback or terminate behind an authenticating TLS reverse proxy (e.g., NGINX, Envoy, Caddy) providing TLS encryption, rate limiting, and access logging.
+

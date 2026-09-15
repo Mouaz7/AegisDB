@@ -6,12 +6,17 @@ echo "  AegisDB: Security Hardening & Dependency Vulnerability Scan"
 echo "  US017 | Master Project Plan §12 (Secure-by-Design) & §13 (Quality Gates)"
 echo "======================================================================="
 
+MVN_CMD="mvn"
+if [ -x "./mvnw" ]; then
+    MVN_CMD="./mvnw"
+fi
+
 # 1. Dependency Tree and Vulnerability Audit
 echo ""
 echo "▶ [1/4] Auditing Maven dependencies and BOM management..."
-mvn dependency:resolve -Dsilent=true
+$MVN_CMD dependency:resolve -Dsilent=true
 echo "▶ Running OWASP Dependency Check..."
-mvn org.owasp:dependency-check-maven:9.0.9:check -DfailBuildOnCVSS=7.0 -DskipProvidedScope=true -DskipRuntimeScope=true || echo "  ⚠️ OWASP Check failed or flagged vulnerabilities"
+$MVN_CMD org.owasp:dependency-check-maven:9.0.9:check -DfailBuildOnCVSS=7.0 -DskipProvidedScope=true -DskipRuntimeScope=true || echo "  ⚠️ OWASP Check failed or flagged vulnerabilities"
 echo "  ✓ All parent BOM managed dependencies resolved successfully."
 
 # 2. Secrets Hygiene Scan
@@ -30,13 +35,13 @@ echo "  ✓ Zero hardcoded credentials or private keys detected in repository."
 # 3. Security Guardrails & Input Boundary Verification
 echo ""
 echo "▶ [3/4] Verifying security guardrails (Input bounding & Path Traversal defense)..."
-mvn test -pl aegisdb-management -Dtest=ManagementServerSecurityTest#inputBoundingAndPathTraversalDefense
+$MVN_CMD test -pl aegisdb-management -Dtest=ManagementServerSecurityTest#inputBoundingAndPathTraversalDefense
 echo "  ✓ Input boundaries (Key <= 1KB, Payload <= 16MB) and Path Traversal sanitized."
 
 # 4. Management RBAC & Rate Limiting Verification
 echo ""
 echo "▶ [4/4] Verifying RBAC token validation and DoS rate limiter gates..."
-mvn test -pl aegisdb-management -Dtest=ManagementServerSecurityTest#unauthenticatedRequestReturns401,ManagementServerSecurityTest#monitorRoleAccessAndForbiddenAdmin,ManagementServerSecurityTest#adminRoleCanExecuteAdminEndpoints,ManagementServerSecurityTest#rateLimiterThrottlesRequests
+$MVN_CMD test -pl aegisdb-management -Dtest=ManagementServerSecurityTest#unauthenticatedRequestReturns401,ManagementServerSecurityTest#monitorRoleAccessAndForbiddenAdmin,ManagementServerSecurityTest#adminRoleCanExecuteAdminEndpoints,ManagementServerSecurityTest#rateLimiterThrottlesRequests
 echo "  ✓ RBAC Bearer authentication and token-bucket rate limiting verified."
 
 echo ""
