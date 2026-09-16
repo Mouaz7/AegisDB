@@ -138,17 +138,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
                 clusterConfig,
                 this.scheduler,
                 heartbeatInterval,
-                heartbeat -> {
-                    for (NodeId peer : clusterConfig.members().keySet()) {
-                        if (!peer.equals(nodeId)) {
-                            transport.appendEntries(peer, heartbeat).whenComplete((resp, ex) -> {
-                                if (ex == null && resp != null) {
-                                    postEvent(new AppendEntriesResponseEvent(peer, heartbeat.term(), resp));
-                                }
-                            });
-                        }
-                    }
-                }
+                heartbeat -> postEvent(new HeartbeatTimeoutEvent(state.currentTerm()))
         );
 
         // 4. Election Manager
@@ -508,7 +498,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
             }
         } else if (event instanceof HeartbeatTimeoutEvent) {
             if (state.role() == RaftRole.LEADER) {
-                heartbeatManager.sendHeartbeats();
+                replicationManager.broadcastReplication();
             }
         }
     }
