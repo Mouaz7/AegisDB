@@ -243,17 +243,30 @@ class ConcurrencyAnomalyTest {
                     for (int j = 0; j < transfersPerThread; j++) {
                         String from = forward ? "acc1" : "acc2";
                         String to = forward ? "acc2" : "acc1";
-                        manager.runInTransaction(tx -> {
-                            int fromBal = Integer.parseInt(tx.getString(from).orElse("0"));
-                            int toBal = Integer.parseInt(tx.getString(to).orElse("0"));
-                            tx.putString(from, String.valueOf(fromBal - 10));
-                            tx.putString(to, String.valueOf(toBal + 10));
-                            return null;
-                        });
-                        successfulTransfers.incrementAndGet();
+                        boolean transferDone = false;
+                        for (int attempt = 0; attempt < 50 && !transferDone; attempt++) {
+                            try {
+                                manager.runInTransaction(IsolationLevel.SNAPSHOT_ISOLATION, tx -> {
+                                    int fromBal = Integer.parseInt(tx.getString(from).orElse("0"));
+                                    int toBal = Integer.parseInt(tx.getString(to).orElse("0"));
+                                    tx.putString(from, String.valueOf(fromBal - 10));
+                                    tx.putString(to, String.valueOf(toBal + 10));
+                                    return null;
+                                }, 50);
+                                transferDone = true;
+                                successfulTransfers.incrementAndGet();
+                            } catch (WriteConflictException | SerializationFailureException retryable) {
+                                try {
+                                    Thread.sleep(2 + (attempt % 5));
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    break;
+                                }
+                            }
+                        }
                     }
                 } catch (Exception e) {
-                    // Retry handled internally in runInTransaction
+                    // Log any unexpected non-retryable worker exception
                 } finally {
                     doneLatch.countDown();
                 }

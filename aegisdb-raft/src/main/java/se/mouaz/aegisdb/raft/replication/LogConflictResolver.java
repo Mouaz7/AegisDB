@@ -72,11 +72,14 @@ public class LogConflictResolver {
             }
         }
 
-        // 3. Update follower's commitIndex (§5.3)
+        // 3. Update follower's commitIndex (§5.3: min(leaderCommit, index of last new entry))
         if (request.leaderCommit() > volatileState.commitIndex()) {
-            long newCommitIndex = Math.min(request.leaderCommit(), raftLog.lastLogIndex());
-            log.debug("Advancing follower commitIndex from {} to {}", volatileState.commitIndex(), newCommitIndex);
-            volatileState.setCommitIndex(newCommitIndex);
+            long lastNewEntryIndex = entries.isEmpty() ? prevLogIndex : insertIndex;
+            long newCommitIndex = Math.min(request.leaderCommit(), lastNewEntryIndex);
+            if (newCommitIndex > volatileState.commitIndex()) {
+                log.debug("Advancing follower commitIndex from {} to {}", volatileState.commitIndex(), newCommitIndex);
+                volatileState.setCommitIndex(newCommitIndex);
+            }
         }
 
         return AppendEntriesResponse.success(currentTerm, raftLog.lastLogIndex());

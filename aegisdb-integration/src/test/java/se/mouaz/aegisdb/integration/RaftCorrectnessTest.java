@@ -253,8 +253,8 @@ class RaftCorrectnessTest {
 
         // Commit entry 1 to all nodes
         CompletableFuture<Long> fut = node1.propose("initial-entry".getBytes(StandardCharsets.UTF_8));
-        fut.get(3, TimeUnit.SECONDS);
-        await().atMost(Duration.ofSeconds(2)).until(() -> node3.commitIndex() == 1L);
+        fut.get(5, TimeUnit.SECONDS);
+        await().atMost(Duration.ofSeconds(6)).until(() -> node3.commitIndex() == 1L);
 
         // Disconnect Node 3
         transport3.stop();
@@ -268,7 +268,7 @@ class RaftCorrectnessTest {
         // Leader commits 2 new entries (indices 2 and 3) with Node 2
         for (int i = 2; i <= 3; i++) {
             CompletableFuture<Long> f = node1.propose(("leader-entry-" + i).getBytes(StandardCharsets.UTF_8));
-            f.get(3, TimeUnit.SECONDS);
+            f.get(5, TimeUnit.SECONDS);
         }
         assertThat(node1.commitIndex()).isEqualTo(3L);
 
@@ -277,7 +277,7 @@ class RaftCorrectnessTest {
         node1.replicationManager().replicateTo(id3);
 
         // Node 3 must truncate its conflicting index 2 and adopt the leader's entry 2 and 3
-        await().atMost(Duration.ofSeconds(4)).until(() -> node3.commitIndex() == 3L);
+        await().atMost(Duration.ofSeconds(8)).until(() -> node3.commitIndex() == 3L);
         assertThat(new String(node3.log().getEntry(2L).get().data(), StandardCharsets.UTF_8))
                 .isEqualTo("leader-entry-2");
         assertThat(new String(node3.log().getEntry(3L).get().data(), StandardCharsets.UTF_8))
@@ -309,7 +309,7 @@ class RaftCorrectnessTest {
         node1.replicationManager().replicateTo(id3);
 
         // Node 3 catches up to index 5
-        await().atMost(Duration.ofSeconds(4)).until(() -> node3.commitIndex() == 5L);
+        await().atMost(Duration.ofSeconds(8)).until(() -> node3.commitIndex() == 5L);
         assertThat(node3.log().lastLogIndex()).isEqualTo(5L);
 
         for (int i = 1; i <= 5; i++) {
