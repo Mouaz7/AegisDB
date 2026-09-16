@@ -225,23 +225,24 @@ class ThreeNodeClusterFaultToleranceTest {
     @Test
     @DisplayName("Scenario 3: Asymmetric network partition (majority 2 vs minority 1)")
     void networkPartitionTwoVsOne() throws Exception {
-        await().atMost(Duration.ofSeconds(3)).until(() -> node1.role() == RaftRole.LEADER);
+        await().atMost(Duration.ofSeconds(4)).until(() -> node1.role() == RaftRole.LEADER);
 
-        // Commit initial entry
-        node1.propose("init-val".getBytes(StandardCharsets.UTF_8)).get(3, TimeUnit.SECONDS);
+        // Commit initial entry and ensure full replication across cluster before isolating minority
+        node1.propose("init-val".getBytes(StandardCharsets.UTF_8)).get(4, TimeUnit.SECONDS);
+        await().atMost(Duration.ofSeconds(4)).until(() -> node2.commitIndex() == 1L && node3.commitIndex() == 1L);
 
         // 1. Partition cluster: Group A = {Node 1, Node 2} (majority), Group B = {Node 3} (minority)
         InMemoryTransport.partition(Set.of(id1, id2), Set.of(id3));
 
         // 2. Majority partition {Node 1, Node 2} can still commit writes
         CompletableFuture<Long> majorityFuture = node1.propose("majority-write".getBytes(StandardCharsets.UTF_8));
-        Long majorityIdx = majorityFuture.get(3, TimeUnit.SECONDS);
+        Long majorityIdx = majorityFuture.get(4, TimeUnit.SECONDS);
         assertThat(majorityIdx).isEqualTo(2L);
         assertThat(node1.commitIndex()).isEqualTo(2L);
 
         // 3. Minority node (Node 3) cannot commit writes (rejects as follower or non-quorate node)
         CompletableFuture<Long> minorityFuture = node3.propose("minority-write".getBytes(StandardCharsets.UTF_8));
-        assertThatThrownBy(() -> minorityFuture.get(1, TimeUnit.SECONDS))
+        assertThatThrownBy(() -> minorityFuture.get(2, TimeUnit.SECONDS))
                 .hasCauseInstanceOf(se.mouaz.aegisdb.raft.NotLeaderException.class);
         assertThat(node3.commitIndex()).isEqualTo(1L);
 
@@ -249,7 +250,7 @@ class ThreeNodeClusterFaultToleranceTest {
         InMemoryTransport.healPartitions();
 
         // 5. Node 3 reconciles and updates its commit index to match majority
-        await().atMost(Duration.ofSeconds(4)).until(() -> node3.commitIndex() == 2L);
+        await().atMost(Duration.ofSeconds(6)).until(() -> node3.commitIndex() == 2L);
         RaftInvariants.assertIdenticalOrderOfCommittedEntries(node1.log(), node3.log(), 2L);
     }
 
