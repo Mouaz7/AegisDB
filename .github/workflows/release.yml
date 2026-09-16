@@ -36,7 +36,7 @@ jobs:
           ./scripts/verify-release-readiness.sh
 
       - name: GitHub Release Publication
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             target/release/aegisdb-*-bin.tar.gz
