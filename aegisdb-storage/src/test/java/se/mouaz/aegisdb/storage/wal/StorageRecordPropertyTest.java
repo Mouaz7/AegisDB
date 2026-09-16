@@ -67,17 +67,15 @@ class StorageRecordPropertyTest {
         ByteBuffer buf = original.serialize();
         byte[] rawBytes = buf.array();
 
-        // Mutate a byte in the payload area (after the 15-byte framing + checksum header and 24-byte body fields)
-        int payloadOffset = StorageRecord.FRAMING_HEADER_SIZE + StorageRecord.CHECKSUM_SIZE + 24;
-        if (payloadOffset < rawBytes.length) {
-            rawBytes[payloadOffset] ^= 0x5A; // Flip bits
+        // Mutate the last byte in the value payload area (guaranteed to be within payload, avoiding length headers)
+        int payloadOffset = rawBytes.length - 1;
+        rawBytes[payloadOffset] ^= 0x5A; // Flip bits
 
-            ByteBuffer corruptedBuf = ByteBuffer.wrap(rawBytes);
-            StorageRecord corrupted = StorageRecord.deserialize(corruptedBuf);
+        ByteBuffer corruptedBuf = ByteBuffer.wrap(rawBytes);
+        StorageRecord corrupted = StorageRecord.deserialize(corruptedBuf);
 
-            assertThat(corrupted.isValidChecksum())
-                    .as("Checksum validation must fail when payload bytes are corrupted")
-                    .isFalse();
-        }
+        assertThat(corrupted.isValidChecksum())
+                .as("Checksum validation must fail when payload bytes are corrupted")
+                .isFalse();
     }
 }

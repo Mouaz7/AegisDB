@@ -8,3 +8,4 @@ target/
 data/
 .agents/
 .mvn/wrapper/maven-wrapper.jar
+.jqwik-database
