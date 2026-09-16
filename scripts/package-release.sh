@@ -25,7 +25,7 @@ if [ -x "./mvnw" ]; then
 fi
 
 echo "▶ Step 1: Compiling and packaging Maven modules..."
-$MVN_CMD clean package -DskipTests
+$MVN_CMD clean package -Pdistribution -DskipTests
 
 echo "▶ Step 2: Preparing distribution layout in ${STAGING_DIR}..."
 rm -rf "${RELEASE_DIR}"
