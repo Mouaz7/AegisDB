@@ -94,6 +94,24 @@
 
 ---
 
+## 🔬 Correctness Verification Matrix & Executable Scenarios
+
+Every core guarantee in AegisDB is directly linked to automated verification suites, bounded formal models, or benchmark experiments:
+
+| Architectural Guarantee | Safety Invariant / Behavioral Specification | Model / Test Harness | Verification Command |
+| :--- | :--- | :--- | :--- |
+| **Election Safety** | At most one leader elected per term | [Raft.tla](spec/tla/Raft.tla), `RaftCorrectnessTest.java` | `./scripts/verify-tla.sh` |
+| **Log Matching & Continuity** | Matching index/term implies identical history | [Raft.tla](spec/tla/Raft.tla), `RaftInvariants.java` | `./scripts/verify-tla.sh` |
+| **Linearizable KV Operations** | Real-time precedence ($op_1 \prec op_2$) under failover | `LinearizabilityChecker.java`, `LinearizabilityIntegrationTest.java` | `mvn test -pl aegisdb-integration -Dtest=LinearizabilityIntegrationTest` |
+| **Multi-Vector Fault Tolerance** | Quorum commits (2/3 & 3/5) during packet drop, reordering & partition | `CombinedChaosClusterTest.java`, `FaultyTransport.java` | `mvn test -pl aegisdb-integration -Dtest=CombinedChaosClusterTest` |
+| **Storage Crash Durability** | Deterministic crash recovery across 6 I/O boundaries without corruption | `CrashableStorageChannel.java`, `StorageCrashConsistencyMatrixTest.java` | `mvn test -pl aegisdb-integration -Dtest=StorageCrashConsistencyMatrixTest` |
+| **Write Skew Isolation** | Snapshot Isolation allows skew; Serializable detects anti-dependency | `WriteSkewIsolationTest.java`, `ConcurrencyAnomalyTest.java` | `mvn test -pl aegisdb-integration -Dtest=WriteSkewIsolationTest` |
+| **Distributed 2PC Atomicity** | Automatic commit/abort decision replay upon coordinator crash recovery | `Distributed2PcCrashRecoveryTest.java`, `DistributedTransactionRecovery.java` | `mvn test -pl aegisdb-integration -Dtest=Distributed2PcCrashRecoveryTest` |
+| **Multi-Node Scalability** | Throughput & p50/p90/p95/p99 tail latency across 3, 5, 7 nodes | `ClusterScaleBenchmark.java`, `ProfilingMetricsCollector.java` | `./scripts/run-benchmarks.sh` |
+| **Automated Release Readiness** | 4-Phase gate: Correctness, Security/SBOM, TLA+, Artifact smoke test | `scripts/verify-release-readiness.sh`, `.github/workflows/release.yml` | `./scripts/verify-release-readiness.sh` |
+
+---
+
 ## Architecture & Directory Structure
 
 AegisDB follows a strict, layered, decoupled architecture with 15 module components:

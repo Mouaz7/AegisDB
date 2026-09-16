@@ -34,3 +34,8 @@ jobs:
 
       - name: Execute Full Test Suite & Architecture Gates
         run: ./mvnw test
+
+      - name: Execute Bounded TLA+ Formal Verification
+        run: |
+          chmod +x scripts/verify-tla.sh
+          ./scripts/verify-tla.sh

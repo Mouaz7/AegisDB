@@ -29,6 +29,9 @@ jobs:
           chmod +x mvnw scripts/*.sh
           ./mvnw clean test-compile
 
+      - name: Execute Extended Stress & Soak Suite
+        run: ./mvnw test -Pstress -pl aegisdb-integration -Daegisdb.stress.durationSeconds=120
+
       - name: Run Live Demonstration & Research Benchmarks
         run: |
           chmod +x scripts/*.sh

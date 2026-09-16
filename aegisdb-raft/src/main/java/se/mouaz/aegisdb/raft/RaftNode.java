@@ -431,6 +431,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
             if (roleBefore == RaftRole.LEADER && state.role() == RaftRole.FOLLOWER) {
                 heartbeatManager.stopHeartbeats();
                 replicationManager.failPendingFutures(new NotLeaderException(state.currentLeader().orElse(null), state.currentTerm()));
+                electionTimer.reset();
             }
             req.future().complete(response);
         } else if (event instanceof VoteResponseEvent voteResp) {
@@ -441,6 +442,7 @@ public class RaftNode implements RaftRequestHandler, AutoCloseable {
             if (roleBefore == RaftRole.LEADER && state.role() == RaftRole.FOLLOWER) {
                 heartbeatManager.stopHeartbeats();
                 replicationManager.failPendingFutures(new NotLeaderException(state.currentLeader().orElse(null), state.currentTerm()));
+                electionTimer.reset();
             }
             applyCommittedEntries();
             app.future().complete(response);
