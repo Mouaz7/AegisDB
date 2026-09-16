@@ -135,8 +135,13 @@ public class AegisConfigLoader {
     private static String resolveEnv(String value) {
         if (value == null) return "";
         if (value.startsWith("${") && value.endsWith("}")) {
-            String envVar = value.substring(2, value.length() - 1);
-            String envVal = System.getenv(envVar);
+            String inner = value.substring(2, value.length() - 1);
+            if (inner.contains(":-")) {
+                String[] parts = inner.split(":-", 2);
+                String envVal = System.getenv(parts[0]);
+                return (envVal != null && !envVal.isEmpty()) ? envVal : parts[1];
+            }
+            String envVal = System.getenv(inner);
             return envVal != null ? envVal : "";
         }
         return value;

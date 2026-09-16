@@ -67,10 +67,10 @@ transactions:
 security:
   rbac:
     enabled: true
-    admin_token: "${AEGISDB_ADMIN_TOKEN}"
-    monitor_token: "${AEGISDB_MONITOR_TOKEN}"
+    admin_token: "${AEGISDB_ADMIN_TOKEN:-CHANGE_ME_LOCAL_DEV_TOKEN}"
+    monitor_token: "${AEGISDB_MONITOR_TOKEN:-CHANGE_ME_LOCAL_DEV_MONITOR_TOKEN}"
   tls:
-    enabled: true
+    enabled: false # Set to true in production with cert_path and key_path configured
     cert_path: "${AEGISDB_TLS_CERT_PATH}"
     key_path: "${AEGISDB_TLS_KEY_PATH}"
   guardrails:
