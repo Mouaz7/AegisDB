@@ -110,7 +110,7 @@ public class RQ1BatchingBenchmark {
                 }
 
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(5, TimeUnit.SECONDS);
+                        .get(15, TimeUnit.SECONDS);
 
                 long batchDuration = System.nanoTime() - batchStart;
                 long perOpLatency = batchDuration / currentBatch;

@@ -26,9 +26,12 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.junit.jupiter.api.Tag;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+@Tag("stress")
 @DisplayName("Configurable Long-Running Stress and Soak Testing Suite")
 class LongRunningStressTest {
 
@@ -143,8 +146,9 @@ class LongRunningStressTest {
                     String value = "val-" + threadIdx + "-" + opIndex;
 
                     long invoke = System.nanoTime();
+                    boolean isRead = (opIndex % 3 == 0);
                     try {
-                        if (opIndex % 3 == 0) {
+                        if (isRead) {
                             Optional<String> observed = client.getString(key).get(1, TimeUnit.SECONDS);
                             long ret = System.nanoTime();
                             trace.recordRead(clientId, key, observed.orElse(null), invoke, ret);
@@ -156,7 +160,9 @@ class LongRunningStressTest {
                         successfulOps.incrementAndGet();
                     } catch (TimeoutException | ExecutionException e) {
                         long ret = System.nanoTime();
-                        trace.recordWrite(clientId, key, value, invoke, ret, OperationStatus.TIMEOUT_INDETERMINATE);
+                        if (!isRead) {
+                            trace.recordWrite(clientId, key, value, invoke, ret, OperationStatus.TIMEOUT_INDETERMINATE);
+                        }
                         indeterminateOps.incrementAndGet();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();

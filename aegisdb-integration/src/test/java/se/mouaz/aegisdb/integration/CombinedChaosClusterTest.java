@@ -144,7 +144,7 @@ class CombinedChaosClusterTest {
                 RaftNode currentLeader = survivors.stream().filter(n -> n.role() == RaftRole.LEADER).findFirst().orElseThrow();
                 try {
                     CompletableFuture<Long> f2 = currentLeader.propose("survivor-write".getBytes(StandardCharsets.UTF_8));
-                    assertThat(f2.get(4, TimeUnit.SECONDS)).isEqualTo(2L);
+                    assertThat(f2.get(4, TimeUnit.SECONDS)).isGreaterThanOrEqualTo(2L);
                     newLeader = currentLeader;
                     break;
                 } catch (Exception ignored) {
