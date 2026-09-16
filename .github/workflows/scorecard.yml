@@ -5,7 +5,7 @@ on:
   schedule:
     - cron: '0 5 * * 1'
   push:
-    branches: [ main ]
+    branches: [ main, feature/* ]
 
 permissions: read-all
 
@@ -29,6 +29,7 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           publish_results: false
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Upload artifact"
         uses: actions/upload-artifact@v4
@@ -37,7 +38,8 @@ jobs:
           path: results.sarif
           retention-days: 5
 
-      - name: "Upload to code-scanning"
+      - name: "Upload to code-scanning (non-blocking if GHAS unavailable)"
         uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
         with:
           sarif_file: results.sarif

@@ -1,6 +1,8 @@
 name: Security Audits & Compliance
 
 on:
+  push:
+    branches: [ main, develop, feature/* ]
   pull_request:
     branches: [ main, develop ]
   schedule:
@@ -8,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   security-scan:
@@ -29,18 +30,10 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: java
-
-      - name: Build Project
+      - name: Build and Package Project
         run: |
           chmod +x mvnw scripts/*.sh
-          ./mvnw clean compile -DskipTests
+          ./mvnw clean install -DskipTests
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
-      - name: Internal Hygiene & Dependency Audit
+      - name: Internal Hygiene, Secrets & Dependency Audit
         run: ./scripts/run-security-scan.sh

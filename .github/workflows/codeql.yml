@@ -2,7 +2,7 @@ name: CodeQL Static Analysis
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, feature/* ]
   pull_request:
     branches: [ main, develop ]
   schedule:
@@ -32,12 +32,21 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: java
+          languages: java-kotlin
 
       - name: Build with Maven Wrapper
         run: |
           chmod +x mvnw
-          ./mvnw clean compile -DskipTests
+          ./mvnw clean install -DskipTests
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
+        with:
+          upload: false
+          output: ../results
+
+      - name: Upload SARIF to Code Scanning (Public Repositories)
+        if: ${{ !github.event.repository.private }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ../results
