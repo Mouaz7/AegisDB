@@ -50,13 +50,13 @@
 - **Durable Coordinator Journal**: Binary coordinator log records transaction state transitions (`PREPARING`, `COMMITTED`, `ABORTED`); automatic startup recovery resolves in-doubt transactions across all 8 failure modes.
 
 ### ⚠️ Scope & Limitations of Guarantees
-- **Durability**: Guaranteed only if WAL segments are successfully flushed (`fsync`) to stable storage before responding to the client. Using delayed `fsync_policy` risks data loss on sudden power failure.
-- **Consistency**: Linearizability is scoped *per shard*. Cross-shard transactions provide Strict Serializable isolation but depend on the availability of the 2PC Coordinator node.
-- **Isolation**: Snapshot Isolation does not prevent write skew anomalies. If you require strict serializability for concurrent overlapping updates on different keys, you must handle write conflicts explicitly at the application level.
+- **Durability**: Guaranteed only when WAL segments are flushed (`fsync`) to stable storage before responding to the client (`FsyncPolicy.ALWAYS`). Using delayed or manual `fsync_policy` trades durability for throughput and risks data loss on abrupt power failure.
+- **Consistency**: Linearizability is scoped *per shard*. Cross-shard transactions provide atomic all-or-nothing execution across shards via Two-Phase Commit (2PC) without claiming external strict serializability across independent shard leaders.
+- **Isolation**: Snapshot Isolation (SI) is the default isolation level. It prevents dirty reads, non-repeatable reads, and lost updates (first-committer-wins). Write skew anomalies on disjoint keys are permitted under Snapshot Isolation (verified in `ConcurrencyAnomalyTest.java`). For workloads requiring write skew prevention, Serializable mode performs validation via read-set anti-dependency checks at commit time.
 
 ### 🧪 Resilience & Chaos Engineering
 - **Fault Injection Transport**: Deterministic, pseudo-random injection of network partitions, message drops, latency jitter, and packet duplication.
-- **Continuous Safety Invariant Monitoring**: Background verification continuously validates election safety, monotonic terms, log prefix consistency, and the financial balance conservation invariant ($A + B + C = \text{Constant}$).
+- **Continuous Safety Invariant Monitoring**: Automated assertions continuously validate election safety, monotonic terms, log prefix consistency, and the financial balance conservation invariant ($A + B + C = \text{Constant}$).
 
 ### 🔒 Enterprise Security Hardening
 - **Lightweight Management Server**: Embedded HTTP administrative plane with constant-time Bearer token verification (`MessageDigest.isEqual`) preventing timing side-channel attacks.
@@ -68,6 +68,29 @@
 - **Prometheus OpenMetrics**: Native `/metrics` endpoint scrapable by Prometheus servers.
 - **Pre-Configured Dashboards**: Ready-to-use Grafana dashboard configuration (`docker/grafana/dashboards/aegisdb_dashboard.json`).
 - **Reproducible Research Harness**: Automated benchmark suite generating publication-grade CSV/JSON datasets evaluating write batching (RQ1), failover latency (RQ2), and MVCC contention (RQ3).
+
+---
+
+## Feature Status & Maturity
+
+### ✅ Implemented & Verified by Automated Tests
+- **Raft Consensus Engine**: Single-leader election safety ($L \le 1$ per term), heartbeat timeout, majority write replication, committed log immutability, conflict log repair, and follower catch-up (`RaftCorrectnessTest`, `ThreeNodeClusterFaultToleranceTest`).
+- **Storage & Crash Durability**: Binary WAL with framing headers, CRC32 checksums, `FsyncPolicy.ALWAYS` immediate durability, atomic metadata persistence (`FileRaftMetadataStorage`), and automatic torn tail repair (`RaftCrashPersistenceTest`).
+- **MVCC Concurrency Control**: Lock-free multi-version reads with point-in-time Snapshot Isolation and first-committer-wins write conflict detection (`MvccStoreTest`, `ConcurrencyAnomalyTest`).
+- **Single-Shard Transactions**: ACID transaction lifecycle (Active, Preparing, Prepared, Committed, Aborted) with read-set/write-set tracking, TTL bounds, and bank balance conservation invariant tests (`BankTransferTest`).
+- **Serializable Validation**: Read-set anti-dependency check at commit time (`validateSerializableConflicts`) rejecting concurrent modifications to read keys.
+- **Distributed 2PC Coordination**: Cross-shard atomic commit/abort via Two-Phase Commit with durable coordinator logging and recovery of in-doubt transactions (`TwoPhaseCommitTest`).
+- **Deterministic Sharding**: Consistent hash ring routing with virtual nodes (`ConsistentHashRouterTest`).
+
+### 🔬 Experimental
+- **Chaos Engineering Harness**: Fault injection transport (`FaultyTransport`, `ChaosOrchestrator`) simulating message drops, latency jitter, and dynamic partitions.
+- **Telemetry & Observability**: OpenTelemetry tracing spans, Prometheus metrics scrape endpoint, and benchmark research suite.
+- **Lightweight Management Server**: HTTP admin server with Bearer token authentication and basic rate limiting.
+
+### 🗺️ Planned Roadmap
+- **True Serializable Snapshot Isolation (SSI)**: Dynamic Serialization Graph Testing (SGT) or precise pivot detection with read-write dependency cycle tracking across transactions.
+- **Cross-Region Multi-Cluster Replication**: Geographical consensus replication and cross-region quorum management.
+- **Automated Dynamic Resharding**: Non-blocking online partition migration and rebalancing across active shard clusters.
 
 ---
 

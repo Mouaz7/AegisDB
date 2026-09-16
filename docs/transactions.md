@@ -134,16 +134,23 @@ sequenceDiagram
 
 ## 5. Concurrency Control & Isolation Roadmap
 
-AegisDB supports two isolation levels (Master Plan §9):
+AegisDB supports two transactional isolation levels (Master Plan §9):
 
 ### 5.1 Snapshot Isolation (SI) - Default
-- **Dirty Read Prevention:** Readers only access committed versions with $\text{commitTimestamp} \le \text{readTimestamp}$.
-- **Non-Repeatable Read Prevention:** Reads remain fixed to the transaction's immutable `Snapshot`.
-- **First-Committer-Wins:** If two concurrent transactions attempt to write to the same key, the first to commit succeeds; subsequent transactions are rejected with `WriteConflictException`.
+- **Dirty Read Prevention:** Readers only access committed row versions with $\text{commitTimestamp} \le \text{readTimestamp}$.
+- **Non-Repeatable Read Prevention:** Point-in-time snapshot reads remain fixed to the transaction's immutable `Snapshot`.
+- **First-Committer-Wins:** Concurrent write-write conflicts on identical keys trigger immediate rejection with `WriteConflictException`.
+- **Write Skew Permitted:** As in standard Snapshot Isolation (and ANSI SQL SI specifications), transactions reading disjoint keys and writing to disjoint keys can commit concurrently without conflict even if their combination violates a multi-key invariant. This behavior is verified in `ConcurrencyAnomalyTest#writeSkewOccursUnderSnapshotIsolation`.
 
-### 5.2 Serializable Snapshot Isolation (SSI) - Advanced
-- **Write Skew Prevention:** Detects anti-dependency cycles where concurrent transactions read disjoint keys and write to disjoint keys, yet collectively violate a multi-key integrity constraint.
-- **Mechanism:** `ConflictDetector.validateSerializableConflicts()` verifies that no key in `ReadSet` has been committed by another transaction after the reader's start timestamp. Any modification triggers `SerializationFailureException`.
+### 5.2 Serializable Validation via Read-Set Anti-Dependency Check
+- **Write Skew Detection & Prevention:** For workloads requiring multi-key integrity guarantees, `IsolationLevel.SERIALIZABLE` enables validation against concurrent read-write anti-dependencies.
+- **Validation Mechanism:** During the `PREPARING` phase, `CommitValidator` invokes `ConflictDetector.validateSerializableConflicts(context, mvccStore)`. It iterates all keys in the transaction's `ReadSet` and queries `MvccStore` to determine if any read key has a committed version with $\text{commitTimestamp} > \text{context.startTimestamp()}$. If detected, the transaction fails closed with `SerializationFailureException`. Verified in `ConcurrencyAnomalyTest#writeSkewPreventedUnderSerializable`.
+- **Roadmap Note:** This mechanism implements backward validation via read-set anti-dependency checking. Full Serializable Snapshot Isolation (SSI) with dynamic Serialization Graph Testing (SGT) and multi-transaction cycle tracking is part of the planned research roadmap.
+
+### 5.3 Distributed Transactions (2PC) Atomic Guarantees
+- **All-or-Nothing Distributed Atomicity:** The Two-Phase Commit protocol (`DistributedTransactionCoordinator`) guarantees that cross-shard distributed transactions either commit across all participant shards or abort cleanly on all shards.
+- **Failure Resilience:** The durable binary coordinator log (`DurableCoordinatorLog`) ensures in-doubt transactions are resolved deterministically across coordinator or participant crashes.
+- **Scope of Guarantee:** 2PC provides atomic distributed execution; it does not claim global external strict serializability across independently scheduled shard leaders without a global physical clock synchronization service or synchronized commit-wait oracle.
 
 ---
 
