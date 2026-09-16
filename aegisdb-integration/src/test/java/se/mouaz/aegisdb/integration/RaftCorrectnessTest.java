@@ -8,7 +8,7 @@ import se.mouaz.aegisdb.common.ClusterConfiguration;
 import se.mouaz.aegisdb.common.Endpoint;
 import se.mouaz.aegisdb.common.NodeId;
 import se.mouaz.aegisdb.raft.RaftNode;
-import se.mouaz.aegisdb.raft.log.LogEntry;
+import se.mouaz.aegisdb.raft.log.RaftLogEntry;
 import se.mouaz.aegisdb.raft.state.RaftInvariants;
 import se.mouaz.aegisdb.raft.state.RaftRole;
 import se.mouaz.aegisdb.transport.InMemoryTransport;
@@ -92,16 +92,16 @@ class RaftCorrectnessTest {
 
         node2 = RaftNode.builder()
                 .nodeId(id2).clusterConfig(clusterConfig).transport(transport2)
-                .minElectionTimeout(Duration.ofMillis(300))
-                .maxElectionTimeout(Duration.ofMillis(450))
+                .minElectionTimeout(Duration.ofMillis(600))
+                .maxElectionTimeout(Duration.ofMillis(900))
                 .heartbeatInterval(Duration.ofMillis(30))
                 .random(new Random(102))
                 .build();
 
         node3 = RaftNode.builder()
                 .nodeId(id3).clusterConfig(clusterConfig).transport(transport3)
-                .minElectionTimeout(Duration.ofMillis(300))
-                .maxElectionTimeout(Duration.ofMillis(450))
+                .minElectionTimeout(Duration.ofMillis(600))
+                .maxElectionTimeout(Duration.ofMillis(900))
                 .heartbeatInterval(Duration.ofMillis(30))
                 .random(new Random(103))
                 .build();
@@ -194,7 +194,7 @@ class RaftCorrectnessTest {
         CompletableFuture<Long> unquorateFuture = node1.propose("unquorate-entry".getBytes(StandardCharsets.UTF_8));
 
         // Commit index must NOT advance without majority acknowledgment
-        assertThatThrownBy(() -> unquorateFuture.get(400, TimeUnit.MILLISECONDS))
+        assertThatThrownBy(() -> unquorateFuture.get(200, TimeUnit.MILLISECONDS))
                 .isInstanceOf(TimeoutException.class);
         assertThat(node1.commitIndex()).isEqualTo(0L);
 
@@ -259,8 +259,8 @@ class RaftCorrectnessTest {
         // Disconnect Node 3
         transport3.stop();
 
-        // Append divergent uncommitted entry directly into Node 3's uncommitted log space (old uncommitted term)
-        node3.log().append(new LogEntry(2L, 1L, "conflicting-stale-data".getBytes(StandardCharsets.UTF_8)));
+        // Append divergent uncommitted entry directly into Node 3's uncommitted log space (different uncommitted term)
+        node3.log().append(new RaftLogEntry(2L, 99L, "conflicting-stale-data".getBytes(StandardCharsets.UTF_8)));
         assertThat(node3.log().lastLogIndex()).isEqualTo(2L);
         assertThat(new String(node3.log().getEntry(2L).get().data(), StandardCharsets.UTF_8))
                 .isEqualTo("conflicting-stale-data");

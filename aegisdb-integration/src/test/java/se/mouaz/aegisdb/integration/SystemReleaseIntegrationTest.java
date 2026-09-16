@@ -2,6 +2,8 @@ package se.mouaz.aegisdb.integration;
 
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.mouaz.aegisdb.benchmark.*;
 import se.mouaz.aegisdb.chaos.ChaosOrchestrator;
 import se.mouaz.aegisdb.chaos.FaultyTransport;

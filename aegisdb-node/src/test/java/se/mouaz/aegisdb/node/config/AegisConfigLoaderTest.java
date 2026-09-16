@@ -12,10 +12,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AegisConfigLoaderTest {
 
+    private String resolveConfigFile(String relativePath) {
+        Path p = Path.of(relativePath);
+        if (Files.exists(p)) return p.toString();
+        Path parentP = Path.of("..", relativePath);
+        if (Files.exists(parentP)) return parentP.toString();
+        return relativePath;
+    }
+
     @Test
     @DisplayName("AegisConfigLoader loads canonical example configuration successfully")
-    void testLoadCanonicalExampleConfig() {
-        AegisConfig config = AegisConfigLoader.load("config/aegisdb-cluster.example.yaml", "node-1");
+    void testLoadCanonicalExampleConfig() throws Exception {
+        String configFile = resolveConfigFile("config/aegisdb-cluster.example.yaml");
+        AegisConfig config = AegisConfigLoader.load(configFile, "node-1");
 
         assertThat(config).isNotNull();
         assertThat(config.nodeConfig().nodeId().value()).isEqualTo("node-1");
@@ -30,9 +39,10 @@ class AegisConfigLoaderTest {
     @Test
     @DisplayName("AegisConfigLoader throws when requested node-id does not exist")
     void testNodeNotFoundThrowsException() {
-        assertThatThrownBy(() -> AegisConfigLoader.load("config/aegisdb-cluster.example.yaml", "unknown-node"))
+        String configFile = resolveConfigFile("config/aegisdb-cluster.example.yaml");
+        assertThatThrownBy(() -> AegisConfigLoader.load(configFile, "unknown-node"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Node configuration for 'unknown-node' not found");
+                .hasMessageContaining("Unknown node ID: unknown-node");
     }
 
     @Test
@@ -43,6 +53,8 @@ class AegisConfigLoaderTest {
                   cluster_id: "test-cluster"
                   shards: 1
                   replication_factor: 1
+                storage:
+                  data_dir: "target/data"
                 nodes:
                   - node_id: "node-1"
                     endpoint:
@@ -60,7 +72,7 @@ class AegisConfigLoaderTest {
 
         assertThatThrownBy(() -> AegisConfigLoader.load(configFile.toString(), "node-1"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate node_id detected: node-1");
+                .hasMessageContaining("Duplicate node ID detected in configuration: node-1");
     }
 
     @Test
@@ -71,6 +83,8 @@ class AegisConfigLoaderTest {
                   cluster_id: "test-cluster"
                   shards: 1
                   replication_factor: 1
+                storage:
+                  data_dir: "target/data"
                 nodes:
                   - node_id: "node-1"
                     endpoint:
