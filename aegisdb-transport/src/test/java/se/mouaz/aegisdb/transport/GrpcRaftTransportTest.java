@@ -27,12 +27,26 @@ class GrpcRaftTransportTest {
     private NodeId nodeA;
     private NodeId nodeB;
 
-    private static int findFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
+    private static int[] findFreePorts(int count) {
+        ServerSocket[] sockets = new ServerSocket[count];
+        int[] ports = new int[count];
+        try {
+            for (int i = 0; i < count; i++) {
+                sockets[i] = new ServerSocket(0);
+                ports[i] = sockets[i].getLocalPort();
+            }
         } catch (IOException e) {
-            throw new RuntimeException("Cannot find free port", e);
+            throw new RuntimeException("Cannot find free ports", e);
+        } finally {
+            for (ServerSocket socket : sockets) {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException ignored) {}
+                }
+            }
         }
+        return ports;
     }
 
     @BeforeEach
@@ -40,31 +54,50 @@ class GrpcRaftTransportTest {
         nodeA = NodeId.of("grpc-node-a");
         nodeB = NodeId.of("grpc-node-b");
 
-        int portA = findFreePort();
-        int portB = findFreePort();
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            tearDown();
+            int[] ports = findFreePorts(2);
 
-        Endpoint epA = Endpoint.of("127.0.0.1", portA);
-        Endpoint epB = Endpoint.of("127.0.0.1", portB);
+            Endpoint epA = Endpoint.of("127.0.0.1", ports[0]);
+            Endpoint epB = Endpoint.of("127.0.0.1", ports[1]);
 
-        ClusterConfiguration clusterConfig = ClusterConfiguration.builder()
-                .addMember(nodeA, epA)
-                .addMember(nodeB, epB)
-                .build();
+            ClusterConfiguration clusterConfig = ClusterConfiguration.builder()
+                    .addMember(nodeA, epA)
+                    .addMember(nodeB, epB)
+                    .build();
 
-        transportA = new GrpcRaftTransport(nodeA, epA, clusterConfig, Duration.ofSeconds(5));
-        transportB = new GrpcRaftTransport(nodeB, epB, clusterConfig, Duration.ofSeconds(5));
+            transportA = new GrpcRaftTransport(nodeA, epA, clusterConfig, Duration.ofSeconds(5));
+            transportB = new GrpcRaftTransport(nodeB, epB, clusterConfig, Duration.ofSeconds(5));
 
-        transportA.registerHandler(new DummyHandler(nodeA));
-        transportB.registerHandler(new DummyHandler(nodeB));
+            transportA.registerHandler(new DummyHandler(nodeA));
+            transportB.registerHandler(new DummyHandler(nodeB));
 
-        transportA.start();
-        transportB.start();
+            try {
+                transportA.start();
+                transportB.start();
+                return;
+            } catch (Exception e) {
+                lastException = e;
+                tearDown();
+                Thread.sleep(100L * attempt);
+            }
+        }
+        if (lastException != null) {
+            throw lastException;
+        }
     }
 
     @AfterEach
     void tearDown() {
-        if (transportA != null) transportA.stop();
-        if (transportB != null) transportB.stop();
+        if (transportA != null) {
+            try { transportA.stop(); } catch (Exception ignored) {}
+            transportA = null;
+        }
+        if (transportB != null) {
+            try { transportB.stop(); } catch (Exception ignored) {}
+            transportB = null;
+        }
     }
 
     @Test

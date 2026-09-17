@@ -41,12 +41,26 @@ class GrpcThreeNodeClusterTest {
     private NodeId id2;
     private NodeId id3;
 
-    private static int findFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
+    private static int[] findFreePorts(int count) {
+        ServerSocket[] sockets = new ServerSocket[count];
+        int[] ports = new int[count];
+        try {
+            for (int i = 0; i < count; i++) {
+                sockets[i] = new ServerSocket(0);
+                ports[i] = sockets[i].getLocalPort();
+            }
         } catch (IOException e) {
-            throw new RuntimeException("Could not find free port", e);
+            throw new RuntimeException("Could not find free ports", e);
+        } finally {
+            for (ServerSocket socket : sockets) {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException ignored) {}
+                }
+            }
         }
+        return ports;
     }
 
     @BeforeEach
@@ -55,43 +69,64 @@ class GrpcThreeNodeClusterTest {
         id2 = NodeId.of("grpc-node-2");
         id3 = NodeId.of("grpc-node-3");
 
-        int port1 = findFreePort();
-        int port2 = findFreePort();
-        int port3 = findFreePort();
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            tearDown();
+            int[] ports = findFreePorts(3);
 
-        Endpoint ep1 = Endpoint.of("127.0.0.1", port1);
-        Endpoint ep2 = Endpoint.of("127.0.0.1", port2);
-        Endpoint ep3 = Endpoint.of("127.0.0.1", port3);
+            Endpoint ep1 = Endpoint.of("127.0.0.1", ports[0]);
+            Endpoint ep2 = Endpoint.of("127.0.0.1", ports[1]);
+            Endpoint ep3 = Endpoint.of("127.0.0.1", ports[2]);
 
-        ClusterConfiguration clusterConfig = ClusterConfiguration.builder()
-                .addMember(id1, ep1)
-                .addMember(id2, ep2)
-                .addMember(id3, ep3)
-                .build();
+            ClusterConfiguration clusterConfig = ClusterConfiguration.builder()
+                    .addMember(id1, ep1)
+                    .addMember(id2, ep2)
+                    .addMember(id3, ep3)
+                    .build();
 
-        NetworkConfiguration netConfig = new NetworkConfiguration(Duration.ofSeconds(1), Duration.ofSeconds(5), false, null, null, null);
+            NetworkConfiguration netConfig = new NetworkConfiguration(Duration.ofSeconds(1), Duration.ofSeconds(5), false, null, null, null);
 
-        NodeConfiguration config1 = NodeConfiguration.builder()
-                .nodeId(id1).endpoint(ep1).networkConfig(netConfig).build();
-        NodeConfiguration config2 = NodeConfiguration.builder()
-                .nodeId(id2).endpoint(ep2).networkConfig(netConfig).build();
-        NodeConfiguration config3 = NodeConfiguration.builder()
-                .nodeId(id3).endpoint(ep3).networkConfig(netConfig).build();
+            NodeConfiguration config1 = NodeConfiguration.builder()
+                    .nodeId(id1).endpoint(ep1).networkConfig(netConfig).build();
+            NodeConfiguration config2 = NodeConfiguration.builder()
+                    .nodeId(id2).endpoint(ep2).networkConfig(netConfig).build();
+            NodeConfiguration config3 = NodeConfiguration.builder()
+                    .nodeId(id3).endpoint(ep3).networkConfig(netConfig).build();
 
-        node1 = NodeBootstrap.createGrpcNode(config1, clusterConfig);
-        node2 = NodeBootstrap.createGrpcNode(config2, clusterConfig);
-        node3 = NodeBootstrap.createGrpcNode(config3, clusterConfig);
+            node1 = NodeBootstrap.createGrpcNode(config1, clusterConfig);
+            node2 = NodeBootstrap.createGrpcNode(config2, clusterConfig);
+            node3 = NodeBootstrap.createGrpcNode(config3, clusterConfig);
 
-        node1.start();
-        node2.start();
-        node3.start();
+            try {
+                node1.start();
+                node2.start();
+                node3.start();
+                return;
+            } catch (Exception e) {
+                lastException = e;
+                tearDown();
+                Thread.sleep(100L * attempt);
+            }
+        }
+        if (lastException != null) {
+            throw lastException;
+        }
     }
 
     @AfterEach
     void tearDown() {
-        if (node1 != null) node1.stop();
-        if (node2 != null) node2.stop();
-        if (node3 != null) node3.stop();
+        if (node1 != null) {
+            try { node1.stop(); } catch (Exception ignored) {}
+            node1 = null;
+        }
+        if (node2 != null) {
+            try { node2.stop(); } catch (Exception ignored) {}
+            node2 = null;
+        }
+        if (node3 != null) {
+            try { node3.stop(); } catch (Exception ignored) {}
+            node3 = null;
+        }
     }
 
     @Test
