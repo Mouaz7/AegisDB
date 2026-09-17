@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+// ============================================================================
+// AegisDB Multi-Raft Sharding & Topology Coordination Protocol (§28, Phase 1)
+//
+// Compatibility & Breaking-Change Policy:
+// 1. Tag numbers (field numbers) MUST NEVER be changed or reused once published.
+// 2. New fields MUST be optional or added with default semantics.
+// ============================================================================
+
+package se.mouaz.aegisdb.protocol;
+
+option java_multiple_files = true;
+option java_package = "se.mouaz.aegisdb.protocol.pb";
+
+enum ShardLifecycleProto {
+  SHARD_LIFECYCLE_UNSPECIFIED = 0;
+  SHARD_ACTIVE = 1;
+  SHARD_SPLITTING = 2;
+  SHARD_BOOTSTRAPPING = 3;
+  SHARD_READY = 4;
+  SHARD_RETIRED_RANGE = 5;
+  SHARD_TOMBSTONED = 6;
+}
+
+message ShardEpochProto {
+  int64 generation = 1;
+  int64 version = 2;
+}
+
+message KeyBoundProto {
+  enum BoundType {
+    BOUND_TYPE_UNSPECIFIED = 0;
+    EXACT = 1;
+    NEGATIVE_INFINITY = 2;
+    POSITIVE_INFINITY = 3;
+  }
+  BoundType type = 1;
+  bytes key = 2;
+}
+
+message KeyRangeProto {
+  KeyBoundProto start_bound = 1;
+  KeyBoundProto end_bound = 2;
+}
+
+message PrepareSplitCommandProto {
+  string split_operation_id = 1;
+  string parent_shard_id = 2;
+  string parent_raft_group_id = 3;
+  string child_shard_id = 4;
+  string child_raft_group_id = 5;
+  bytes split_key = 6;
+  repeated string child_replicas = 7;
+  ShardEpochProto expected_parent_epoch = 8;
+  ShardEpochProto target_epoch = 9;
+}
+
+message SplitSnapshotBarrierCommandProto {
+  string split_operation_id = 1;
+  string parent_shard_id = 2;
+  string parent_raft_group_id = 3;
+  string child_shard_id = 4;
+  string child_raft_group_id = 5;
+}
+
+message BootstrapCompleteCommandProto {
+  string split_operation_id = 1;
+  string parent_shard_id = 2;
+  string parent_raft_group_id = 3;
+  string child_shard_id = 4;
+  string child_raft_group_id = 5;
+  int64 prepare_fence_index = 6;
+  int64 snapshot_barrier_index = 7;
+  KeyRangeProto range = 8;
+  ShardEpochProto epoch = 9;
+  bytes snapshot_checksum = 10;
+}
+
+message TopologyCutoverCommandProto {
+  string split_operation_id = 1;
+  int64 expected_topology_version = 2;
+  int64 new_topology_version = 3;
+  string parent_shard_id = 4;
+  string parent_raft_group_id = 5;
+  KeyRangeProto parent_range = 6;
+  ShardEpochProto new_parent_epoch = 7;
+  string child_shard_id = 8;
+  string child_raft_group_id = 9;
+  KeyRangeProto child_range = 10;
+  ShardEpochProto new_child_epoch = 11;
+  int64 snapshot_barrier_index = 12;
+  bytes snapshot_checksum = 13;
+}
+
+message FinalizeSplitCommandProto {
+  string split_operation_id = 1;
+  string parent_shard_id = 2;
+  string parent_raft_group_id = 3;
+  string child_shard_id = 4;
+  string child_raft_group_id = 5;
+  bytes split_key = 6;
+  ShardEpochProto new_parent_epoch = 7;
+  int64 topology_version = 8;
+}
+
+message ActivateShardCommandProto {
+  string split_operation_id = 1;
+  string child_shard_id = 2;
+  string child_raft_group_id = 3;
+  ShardEpochProto epoch = 4;
+  int64 topology_version = 5;
+}
+
+message AbortSplitCommandProto {
+  string split_operation_id = 1;
+  string parent_shard_id = 2;
+  string parent_raft_group_id = 3;
+  string child_shard_id = 4;
+  string child_raft_group_id = 5;
+  string reason = 6;
+}
+
+message AbortBootstrapCommandProto {
+  string split_operation_id = 1;
+  string child_shard_id = 2;
+  string child_raft_group_id = 3;
+  string reason = 4;
+}
+
+message RoutedRequestHeaderProto {
+  string shard_id = 1;
+  ShardEpochProto epoch = 2;
+  int64 topology_version = 3;
+}

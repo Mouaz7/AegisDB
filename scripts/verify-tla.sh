@@ -52,26 +52,44 @@ fi
 
 echo "================================================================================"
 echo "   AEGISDB - FORMAL TLA+ BOUNDED MODEL CHECKING (§28 Master Plan)               "
-echo "   Model: spec/tla/RaftMC.tla (Servers=3, MaxTerms=3, MaxLogLen=3)             "
+echo "   Model 1: spec/tla/RaftMC.tla (Servers=3, MaxTerms=3, MaxLogLen=3)           "
+echo "   Model 2: spec/tla/RangeSplitMC.tla (Multi-Raft Range Partitioning & Split)   "
 echo "================================================================================"
 
 cd "${ROOT_DIR}"
-OUTPUT=$(java -XX:+UseParallelGC -cp "${TLA_JAR}" tlc2.TLC -deadlock -workers 2 spec/tla/RaftMC.tla 2>&1)
+echo "--- Running Model 1: RaftMC.tla ---"
+OUTPUT_RAFT=$(java -XX:+UseParallelGC -cp "${TLA_JAR}" tlc2.TLC -deadlock -workers 2 spec/tla/RaftMC.tla 2>&1)
+echo "${OUTPUT_RAFT}"
 
-echo "${OUTPUT}"
-
-if echo "${OUTPUT}" | grep -q "Error:"; then
-    echo "TLC Model Checking FAILED: Invariant violation detected."
+if echo "${OUTPUT_RAFT}" | grep -q "Error:"; then
+    echo "TLC Model Checking FAILED for RaftMC: Invariant violation detected."
     exit 1
 fi
 
-if echo "${OUTPUT}" | grep -q "Model checking completed. No error has been found."; then
-    echo "================================================================================"
-    echo "   TLA+ BOUNDED MODEL CHECKING PASSED (0 INVARIANT VIOLATIONS)                  "
-    echo "   Verified: ElectionSafety, LogMatching, StateMachineSafety                    "
-    echo "================================================================================"
-    exit 0
-else
-    echo "Model checking finished without explicit success string. Check output above."
+if ! echo "${OUTPUT_RAFT}" | grep -q "Model checking completed. No error has been found."; then
+    echo "Model checking RaftMC finished without explicit success string. Check output above."
     exit 1
 fi
+
+echo "--- Running Model 2: RangeSplitMC.tla ---"
+OUTPUT_SPLIT=$(java -XX:+UseParallelGC -cp "${TLA_JAR}" tlc2.TLC -deadlock -workers 2 spec/tla/RangeSplitMC.tla 2>&1)
+echo "${OUTPUT_SPLIT}"
+
+if echo "${OUTPUT_SPLIT}" | grep -q "Error:"; then
+    echo "TLC Model Checking FAILED for RangeSplitMC: Invariant violation detected."
+    exit 1
+fi
+
+if ! echo "${OUTPUT_SPLIT}" | grep -q "Model checking completed. No error has been found."; then
+    echo "Model checking RangeSplitMC finished without explicit success string. Check output above."
+    exit 1
+fi
+
+echo "================================================================================"
+echo "   TLA+ BOUNDED MODEL CHECKING PASSED (0 INVARIANT VIOLATIONS)                  "
+echo "   Verified Raft: ElectionSafety, LogMatching, StateMachineSafety               "
+echo "   Verified RangeSplit: SingleAuthoritativeOwner, NoAuthoritativeOverlap,       "
+echo "                        NoAuthoritativeGaps, CutoverIrreversibility,            "
+echo "                        WriteFenceEnforced, RoutingSafety                       "
+echo "================================================================================"
+exit 0

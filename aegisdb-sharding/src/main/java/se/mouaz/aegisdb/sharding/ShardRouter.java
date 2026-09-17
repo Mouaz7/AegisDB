@@ -46,6 +46,40 @@ public class ShardRouter {
         return route(key).replicationGroup();
     }
 
+    public record RoutedDestination(Shard shard, ShardEpoch epoch, TopologyVersion topologyVersion) {}
+
+    /**
+     * Resolves the destination shard along with its expected ShardEpoch and cluster TopologyVersion.
+     */
+    public RoutedDestination routeWithEpoch(se.mouaz.aegisdb.common.ByteArrayKey key) {
+        Objects.requireNonNull(key, "key cannot be null");
+        ShardId shardId;
+        ShardEpoch epoch;
+        TopologyVersion topVer;
+
+        if (partitioner instanceof RangePartitioner rp) {
+            TopologySnapshot.ShardRangeAssignment assignment = rp.route(key)
+                    .orElseThrow(() -> new IllegalStateException("No routable shard found for key: " + key));
+            shardId = assignment.shardId();
+            epoch = assignment.epoch();
+            topVer = rp.currentSnapshot().version();
+        } else {
+            shardId = partitioner.selectShard(key.asUtf8String(), shardMap);
+            Shard shard = shardMap.getShard(shardId)
+                    .orElseThrow(() -> new IllegalStateException("Shard " + shardId + " not found in ShardMap"));
+            epoch = shard.metadata().epoch();
+            topVer = TopologyVersion.initial();
+        }
+
+        Shard shard = shardMap.getShard(shardId)
+                .orElseThrow(() -> new IllegalStateException("Shard " + shardId + " not found in ShardMap"));
+        return new RoutedDestination(shard, epoch, topVer);
+    }
+
+    public RoutedDestination routeWithEpoch(String key) {
+        return routeWithEpoch(se.mouaz.aegisdb.common.ByteArrayKey.of(key));
+    }
+
     public Partitioner partitioner() {
         return partitioner;
     }

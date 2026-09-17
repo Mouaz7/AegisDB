@@ -14,8 +14,15 @@ public class ShardMap {
 
     private final Map<ShardId, Shard> shardRegistry = new ConcurrentHashMap<>();
     private final CopyOnWriteArrayList<Shard> indexedShards = new CopyOnWriteArrayList<>();
+    private final java.util.concurrent.atomic.AtomicReference<TopologySnapshot> topologySnapshot = new java.util.concurrent.atomic.AtomicReference<>();
 
     public ShardMap() {
+    }
+
+    public ShardMap(TopologySnapshot initialSnapshot) {
+        if (initialSnapshot != null) {
+            applyTopologyChange(initialSnapshot);
+        }
     }
 
     public ShardMap(Collection<Shard> initialShards) {
@@ -82,6 +89,23 @@ public class ShardMap {
      */
     public int shardCount() {
         return indexedShards.size();
+    }
+
+    public synchronized void applyTopologyChange(TopologySnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot cannot be null");
+        this.topologySnapshot.set(snapshot);
+        for (Map.Entry<ShardId, ShardMetadata> entry : snapshot.metadataMap().entrySet()) {
+            ShardId sid = entry.getKey();
+            ShardMetadata meta = entry.getValue();
+            Shard existing = shardRegistry.get(sid);
+            if (existing != null) {
+                registerShard(new Shard(sid, meta, existing.replicationGroup()));
+            }
+        }
+    }
+
+    public Optional<TopologySnapshot> currentTopologySnapshot() {
+        return Optional.ofNullable(topologySnapshot.get());
     }
 
     /**

@@ -32,12 +32,26 @@ class GrpcThreeNodeElectionTest {
     private GrpcRaftTransport transport2;
     private GrpcRaftTransport transport3;
 
-    private static int findFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
+    private static int[] findFreePorts(int count) {
+        ServerSocket[] sockets = new ServerSocket[count];
+        int[] ports = new int[count];
+        try {
+            for (int i = 0; i < count; i++) {
+                sockets[i] = new ServerSocket(0);
+                ports[i] = sockets[i].getLocalPort();
+            }
         } catch (IOException e) {
-            throw new RuntimeException("Could not find free port", e);
+            throw new RuntimeException("Could not find free ports", e);
+        } finally {
+            for (ServerSocket socket : sockets) {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException ignored) {}
+                }
+            }
         }
+        return ports;
     }
 
     @BeforeEach
@@ -48,68 +62,98 @@ class GrpcThreeNodeElectionTest {
         NodeId id2 = NodeId.of("grpc-raft-2");
         NodeId id3 = NodeId.of("grpc-raft-3");
 
-        int port1 = findFreePort();
-        int port2 = findFreePort();
-        int port3 = findFreePort();
+        Exception lastException = null;
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            tearDown();
+            int[] ports = findFreePorts(3);
 
-        Endpoint ep1 = Endpoint.of("127.0.0.1", port1);
-        Endpoint ep2 = Endpoint.of("127.0.0.1", port2);
-        Endpoint ep3 = Endpoint.of("127.0.0.1", port3);
+            Endpoint ep1 = Endpoint.of("127.0.0.1", ports[0]);
+            Endpoint ep2 = Endpoint.of("127.0.0.1", ports[1]);
+            Endpoint ep3 = Endpoint.of("127.0.0.1", ports[2]);
 
-        ClusterConfiguration clusterConfig = ClusterConfiguration.builder()
-                .clusterId("grpc-raft-cluster")
-                .addMember(id1, ep1)
-                .addMember(id2, ep2)
-                .addMember(id3, ep3)
-                .build();
+            ClusterConfiguration clusterConfig = ClusterConfiguration.builder()
+                    .clusterId("grpc-raft-cluster")
+                    .addMember(id1, ep1)
+                    .addMember(id2, ep2)
+                    .addMember(id3, ep3)
+                    .build();
 
-        transport1 = new GrpcRaftTransport(id1, ep1, clusterConfig, Duration.ofSeconds(4));
-        transport2 = new GrpcRaftTransport(id2, ep2, clusterConfig, Duration.ofSeconds(4));
-        transport3 = new GrpcRaftTransport(id3, ep3, clusterConfig, Duration.ofSeconds(4));
+            transport1 = new GrpcRaftTransport(id1, ep1, clusterConfig, Duration.ofSeconds(4));
+            transport2 = new GrpcRaftTransport(id2, ep2, clusterConfig, Duration.ofSeconds(4));
+            transport3 = new GrpcRaftTransport(id3, ep3, clusterConfig, Duration.ofSeconds(4));
 
-        transport1.start();
-        transport2.start();
-        transport3.start();
+            try {
+                transport1.start();
+                transport2.start();
+                transport3.start();
 
-        // Node 1 has fastest election timeout to win first
-        node1 = RaftNode.builder()
-                .nodeId(id1).clusterConfig(clusterConfig).transport(transport1)
-                .minElectionTimeout(Duration.ofMillis(250))
-                .maxElectionTimeout(Duration.ofMillis(350))
-                .heartbeatInterval(Duration.ofMillis(60))
-                .random(new Random(1))
-                .build();
+                // Node 1 has fastest election timeout to win first
+                node1 = RaftNode.builder()
+                        .nodeId(id1).clusterConfig(clusterConfig).transport(transport1)
+                        .minElectionTimeout(Duration.ofMillis(250))
+                        .maxElectionTimeout(Duration.ofMillis(350))
+                        .heartbeatInterval(Duration.ofMillis(60))
+                        .random(new Random(1))
+                        .build();
 
-        node2 = RaftNode.builder()
-                .nodeId(id2).clusterConfig(clusterConfig).transport(transport2)
-                .minElectionTimeout(Duration.ofMillis(600))
-                .maxElectionTimeout(Duration.ofMillis(750))
-                .heartbeatInterval(Duration.ofMillis(60))
-                .random(new Random(2))
-                .build();
+                node2 = RaftNode.builder()
+                        .nodeId(id2).clusterConfig(clusterConfig).transport(transport2)
+                        .minElectionTimeout(Duration.ofMillis(600))
+                        .maxElectionTimeout(Duration.ofMillis(750))
+                        .heartbeatInterval(Duration.ofMillis(60))
+                        .random(new Random(2))
+                        .build();
 
-        node3 = RaftNode.builder()
-                .nodeId(id3).clusterConfig(clusterConfig).transport(transport3)
-                .minElectionTimeout(Duration.ofMillis(800))
-                .maxElectionTimeout(Duration.ofMillis(950))
-                .heartbeatInterval(Duration.ofMillis(60))
-                .random(new Random(3))
-                .build();
+                node3 = RaftNode.builder()
+                        .nodeId(id3).clusterConfig(clusterConfig).transport(transport3)
+                        .minElectionTimeout(Duration.ofMillis(800))
+                        .maxElectionTimeout(Duration.ofMillis(950))
+                        .heartbeatInterval(Duration.ofMillis(60))
+                        .random(new Random(3))
+                        .build();
 
-        node1.start();
-        node2.start();
-        node3.start();
+                node1.start();
+                node2.start();
+                node3.start();
+                return;
+            } catch (Exception e) {
+                lastException = e;
+                tearDown();
+                Thread.sleep(100L * attempt);
+            }
+        }
+        if (lastException != null) {
+            throw lastException;
+        }
     }
 
     @AfterEach
     void tearDown() {
-        if (node1 != null) node1.stop();
-        if (node2 != null) node2.stop();
-        if (node3 != null) node3.stop();
+        if (node1 != null) {
+            try { node1.stop(); } catch (Exception ignored) {}
+            node1 = null;
+        }
+        if (node2 != null) {
+            try { node2.stop(); } catch (Exception ignored) {}
+            node2 = null;
+        }
+        if (node3 != null) {
+            try { node3.stop(); } catch (Exception ignored) {}
+            node3 = null;
+        }
 
-        if (transport1 != null) transport1.stop();
-        if (transport2 != null) transport2.stop();
-        if (transport3 != null) transport3.stop();
+        if (transport1 != null) {
+            try { transport1.stop(); } catch (Exception ignored) {}
+            transport1 = null;
+        }
+        if (transport2 != null) {
+            try { transport2.stop(); } catch (Exception ignored) {}
+            transport2 = null;
+        }
+        if (transport3 != null) {
+            try { transport3.stop(); } catch (Exception ignored) {}
+            transport3 = null;
+        }
 
         RaftInvariants.clearInvariantTracking();
     }
