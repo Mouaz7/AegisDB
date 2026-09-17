@@ -27,7 +27,7 @@ echo -e "${BOLD}${CYAN}=========================================================
 # ---------------------------------------------------------------------
 echo -e "${BOLD}${YELLOW}[Phase 1/4] Validating Distributed Correctness & Safety Invariants...${RESET}"
 
-CORRECTNESS_TESTS="RaftCorrectnessTest,ThreeNodeClusterFaultToleranceTest,LinearizabilityIntegrationTest,StorageCrashConsistencyMatrixTest,WriteSkewIsolationTest,Distributed2PcCrashRecoveryTest"
+CORRECTNESS_TESTS="RaftCorrectnessTest,ThreeNodeClusterFaultToleranceTest,LinearizabilityIntegrationTest,StorageCrashConsistencyMatrixTest,WriteSkewIsolationTest,Distributed2PcCrashRecoveryTest,RangePartitioningTest,RaftCoordinatedSplitIntegrationTest"
 
 ./mvnw test -pl aegisdb-integration -am -Dtest="${CORRECTNESS_TESTS}" -Dsurefire.failIfNoSpecifiedTests=false -q
 
@@ -37,6 +37,7 @@ echo -e "  ${GREEN}✓${RESET} Mathematical linearizability (WGL) verified under
 echo -e "  ${GREEN}✓${RESET} Precision storage crash consistency matrix verified (6 crash points)"
 echo -e "  ${GREEN}✓${RESET} Write Skew isolation (SERIALIZABLE vs SNAPSHOT_ISOLATION) verified"
 echo -e "  ${GREEN}✓${RESET} Distributed 2PC crash recovery invariants verified"
+echo -e "  ${GREEN}✓${RESET} Multi-Raft range partitioning, dynamic splitting, and crash recovery verified"
 echo -e "${BOLD}${GREEN}>> Phase 1 PASSED: Distributed Correctness Verified.${RESET}\n"
 
 # ---------------------------------------------------------------------
@@ -64,7 +65,7 @@ echo -e "${BOLD}${YELLOW}[Phase 3/4] Validating Formal TLA+ Specification via TL
 if [ -f "${SCRIPT_DIR}/verify-tla.sh" ]; then
     chmod +x "${SCRIPT_DIR}/verify-tla.sh"
     "${SCRIPT_DIR}/verify-tla.sh"
-    echo -e "  ${GREEN}✓${RESET} Bounded model checking passed: ElectionSafety, LogMatching, StateMachineSafety"
+    echo -e "  ${GREEN}✓${RESET} Bounded model checking passed: Raft (ElectionSafety, LogMatching, StateMachineSafety) & RangeSplit (SingleAuthoritativeOwner, NoAuthoritativeOverlap, NoAuthoritativeGaps, CutoverIrreversibility, RoutingSafety)"
     echo -e "${BOLD}${GREEN}>> Phase 3 PASSED: Formal Specification Verified.${RESET}\n"
 else
     echo -e "  ${YELLOW}⚠ verify-tla.sh not found, skipping TLA+ verification.${RESET}\n"
