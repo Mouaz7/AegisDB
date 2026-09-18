@@ -67,7 +67,7 @@
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <cyclonedx-maven-plugin.version>2.7.10</cyclonedx-maven-plugin.version>
         <pitest-maven.version>1.16.1</pitest-maven.version>
-        <pitest-junit5-plugin.version>1.2.1</pitest-junit5-plugin.version>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
     </properties>
 
     <dependencyManagement>
