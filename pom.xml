@@ -49,7 +49,7 @@
         <!-- Testing -->
         <junit.version>5.11.4</junit.version>
         <assertj.version>3.27.2</assertj.version>
-        <mockito.version>5.14.2</mockito.version>
+        <mockito.version>5.23.0</mockito.version>
         <awaitility.version>4.2.2</awaitility.version>
         <archunit.version>1.3.0</archunit.version>
         <jqwik.version>1.9.2</jqwik.version>
